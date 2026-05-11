@@ -1,18 +1,21 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Filter } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
-import { CropCategory, CATEGORY_LABELS } from '@/types/crop';
+import { CropCategory } from '@/types/crop';
 import CropCard from '@/components/CropCard';
 import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/colors';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getCategoryLabel } from '@/constants/localization';
 
 const FILTER_OPTIONS: (CropCategory | 'all')[] = ['all', 'grain', 'horticulture', 'pulse', 'oilseed', 'spice'];
 
 export default function CropsScreen() {
   const router = useRouter();
   const { crops, isLoading } = useCrops();
+  const { language, t } = useLanguage();
   const [filter, setFilter] = useState<CropCategory | 'all'>('all');
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -47,7 +50,7 @@ export default function CropsScreen() {
               activeOpacity={0.7}
             >
               <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>
-                {item === 'all' ? 'All' : CATEGORY_LABELS[item]}
+                {item === 'all' ? t('common.all') : getCategoryLabel(language, item)}
               </Text>
             </TouchableOpacity>
           )}
@@ -61,10 +64,15 @@ export default function CropsScreen() {
           activeOpacity={0.7}
         >
           <Text style={[styles.toggleText, showCompleted && styles.toggleTextActive]}>
-            Show Harvested
+            {t('cropsScreen.showHarvested')}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.countText}>{filteredCrops.length} crop{filteredCrops.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.countText}>
+          {t('cropsScreen.cropCount', {
+            count: filteredCrops.length,
+            cropWord: filteredCrops.length === 1 ? t('dashboard.cropSingular') : t('dashboard.cropPlural'),
+          })}
+        </Text>
       </View>
 
       <FlatList
@@ -76,9 +84,9 @@ export default function CropsScreen() {
         contentContainerStyle={filteredCrops.length === 0 ? styles.emptyList : styles.list}
         ListEmptyComponent={
           <EmptyState
-            title="No Crops Found"
-            subtitle={filter !== 'all' ? 'No crops in this category yet.' : 'Add your first crop to get started!'}
-            actionLabel="Add Crop"
+            title={t('cropsScreen.noCropsTitle')}
+            subtitle={filter !== 'all' ? t('cropsScreen.noCropsFiltered') : t('cropsScreen.noCropsEmpty')}
+            actionLabel={t('cropsScreen.addCrop')}
             onAction={() => router.push('/add-crop')}
           />
         }

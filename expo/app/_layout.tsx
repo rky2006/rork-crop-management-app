@@ -4,18 +4,23 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { CropProvider } from "@/contexts/CropContext";
+import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 import Colors from "@/constants/colors";
+import LanguageMenu from "@/components/LanguageMenu";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { t } = useLanguage();
+
   return (
     <Stack
       screenOptions={{
-        headerBackTitle: "Back",
+        headerBackTitle: t('stack.back'),
         contentStyle: { backgroundColor: Colors.background },
+        headerRight: () => <LanguageMenu />,
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -23,7 +28,7 @@ function RootLayoutNav() {
         name="add-crop"
         options={{
           presentation: "modal",
-          title: "Add New Crop",
+          title: t('stack.addCrop'),
           headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.text,
         }}
@@ -31,7 +36,7 @@ function RootLayoutNav() {
       <Stack.Screen
         name="crop-detail"
         options={{
-          title: "Crop Details",
+          title: t('stack.cropDetail'),
           headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.text,
         }}
@@ -40,7 +45,7 @@ function RootLayoutNav() {
         name="add-activity"
         options={{
           presentation: "modal",
-          title: "Log Activity",
+          title: t('stack.addActivity'),
           headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.text,
         }}
@@ -49,7 +54,7 @@ function RootLayoutNav() {
         name="soil-report"
         options={{
           presentation: "modal",
-          title: "Soil & Water Report",
+          title: t('stack.soilReport'),
           headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.text,
         }}
@@ -57,7 +62,7 @@ function RootLayoutNav() {
       <Stack.Screen
         name="disease-diagnosis"
         options={{
-          title: "Disease Diagnosis",
+          title: t('stack.diseaseDiagnosis'),
           headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.text,
         }}
@@ -74,9 +79,11 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
-        <CropProvider>
-          <RootLayoutNav />
-        </CropProvider>
+        <LanguageProvider>
+          <CropProvider>
+            <RootLayoutNav />
+          </CropProvider>
+        </LanguageProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

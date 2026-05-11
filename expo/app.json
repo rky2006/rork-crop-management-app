@@ -34,6 +34,12 @@
           "origin": "https://rork.com/"
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Crop Management App to access your location for local weather-based farming tips."
+        }
+      ],
       "expo-font",
       "expo-web-browser"
     ],

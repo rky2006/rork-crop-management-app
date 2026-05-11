@@ -9,21 +9,22 @@ import {
 } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
 import {
-  GROWTH_STAGES, STAGE_LABELS, STAGE_COLORS, CATEGORY_LABELS,
-  ACTIVITY_LABELS, GrowthStage
+  GROWTH_STAGES, STAGE_COLORS, GrowthStage
 } from '@/types/crop';
 import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import StageTimeline from '@/components/StageTimeline';
 import FarmingTips from '@/components/FarmingTips';
 import FertilizerSuggestions from '@/components/FertilizerSuggestions';
-import { FARMING_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getActivityLabel, getCategoryLabel, getStageLabel } from '@/constants/localization';
 
 export default function CropDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getCropById, updateStage, deleteCrop } = useCrops();
   const [showStageSelector, setShowStageSelector] = useState(false);
+  const { language, t } = useLanguage();
 
   const crop = getCropById(id ?? '');
 
@@ -67,9 +68,9 @@ export default function CropDetailScreen() {
   if (!crop) {
     return (
       <View style={styles.container}>
-        <Stack.Screen options={{ title: 'Crop Not Found' }} />
+        <Stack.Screen options={{ title: t('cropDetail.cropNotFound') }} />
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Crop not found</Text>
+          <Text style={styles.emptyText}>{t('cropDetail.cropNotFound')}</Text>
         </View>
       </View>
     );
@@ -91,20 +92,20 @@ export default function CropDetailScreen() {
         >
           <View style={styles.heroContent}>
             <View style={[styles.stageBadgeLarge, { backgroundColor: stageColor }]}>
-              <Text style={styles.stageBadgeText}>{STAGE_LABELS[crop.currentStage]}</Text>
+              <Text style={styles.stageBadgeText}>{getStageLabel(language, crop.currentStage)}</Text>
             </View>
             <Text style={styles.heroName}>{crop.name}</Text>
-            <Text style={styles.heroVariety}>{crop.variety} · {CATEGORY_LABELS[crop.category]}</Text>
+            <Text style={styles.heroVariety}>{crop.variety} · {getCategoryLabel(language, crop.category)}</Text>
             <View style={styles.farmingBadgeRow}>
               {crop.farmingType === 'organic' ? (
                 <View style={[styles.farmingBadge, { backgroundColor: '#DCFCE7' }]}>
                   <Leaf size={12} color="#16A34A" />
-                  <Text style={[styles.farmingBadgeText, { color: '#16A34A' }]}>Organic</Text>
+                  <Text style={[styles.farmingBadgeText, { color: '#16A34A' }]}>{t('cropDetail.organic')}</Text>
                 </View>
               ) : (
                 <View style={[styles.farmingBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                   <Factory size={12} color="#fff" />
-                  <Text style={[styles.farmingBadgeText, { color: '#fff' }]}>Non-Organic</Text>
+                  <Text style={[styles.farmingBadgeText, { color: '#fff' }]}>{t('cropDetail.nonOrganic')}</Text>
                 </View>
               )}
             </View>
@@ -115,17 +116,17 @@ export default function CropDetailScreen() {
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{progress}%</Text>
-          <Text style={styles.statLabel}>Progress</Text>
+          <Text style={styles.statLabel}>{t('cropDetail.progress')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{daysLeft > 0 ? daysLeft : 0}</Text>
-          <Text style={styles.statLabel}>Days Left</Text>
+          <Text style={styles.statLabel}>{t('cropDetail.daysLeft')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{crop.activities.length}</Text>
-          <Text style={styles.statLabel}>Activities</Text>
+          <Text style={styles.statLabel}>{t('cropDetail.activities')}</Text>
         </View>
       </View>
 
@@ -134,46 +135,46 @@ export default function CropDetailScreen() {
           <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: stageColor }]} />
         </View>
         <View style={styles.progressLabels}>
-          <Text style={styles.progressDateLabel}>Sowed: {formatDate(crop.sowingDate)}</Text>
-          <Text style={styles.progressDateLabel}>Harvest: {formatDate(crop.expectedHarvestDate)}</Text>
+          <Text style={styles.progressDateLabel}>{t('cropDetail.sowed')}: {formatDate(crop.sowingDate)}</Text>
+          <Text style={styles.progressDateLabel}>{t('cropDetail.harvestDate')}: {formatDate(crop.expectedHarvestDate)}</Text>
         </View>
       </View>
 
       <View style={styles.infoSection}>
         <View style={styles.infoRow}>
           <MapPin size={16} color={Colors.textMuted} />
-          <Text style={styles.infoLabel}>Plot</Text>
+          <Text style={styles.infoLabel}>{t('cropDetail.plot')}</Text>
           <Text style={styles.infoValue}>{crop.plotName}</Text>
         </View>
         <View style={styles.infoRow}>
           <BarChart3 size={16} color={Colors.textMuted} />
-          <Text style={styles.infoLabel}>Size</Text>
+          <Text style={styles.infoLabel}>{t('cropDetail.size')}</Text>
           <Text style={styles.infoValue}>{crop.plotSize}</Text>
         </View>
         <View style={styles.infoRow}>
           <Calendar size={16} color={Colors.textMuted} />
-          <Text style={styles.infoLabel}>Added</Text>
+          <Text style={styles.infoLabel}>{t('cropDetail.added')}</Text>
           <Text style={styles.infoValue}>{formatDate(crop.createdAt)}</Text>
         </View>
       </View>
 
       {crop.notes ? (
         <View style={styles.notesSection}>
-          <Text style={styles.sectionTitle}>Notes</Text>
+          <Text style={styles.sectionTitle}>{t('cropDetail.notes')}</Text>
           <Text style={styles.notesText}>{crop.notes}</Text>
         </View>
       ) : null}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Growth Timeline</Text>
+          <Text style={styles.sectionTitle}>{t('cropDetail.growthTimeline')}</Text>
           <TouchableOpacity
             onPress={() => setShowStageSelector(!showStageSelector)}
             style={styles.updateStageBtn}
             activeOpacity={0.7}
           >
             <ArrowUpCircle size={16} color={Colors.primary} />
-            <Text style={styles.updateStageText}>Update Stage</Text>
+            <Text style={styles.updateStageText}>{t('cropDetail.updateStage')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -194,9 +195,9 @@ export default function CropDetailScreen() {
                   styles.stageSelectorText,
                   crop.currentStage === stage && { color: STAGE_COLORS[stage], fontWeight: '700' as const },
                 ]}>
-                  {STAGE_LABELS[stage]}
+                  {getStageLabel(language, stage)}
                 </Text>
-                {crop.currentStage === stage && <Text style={styles.currentLabel}>Current</Text>}
+                {crop.currentStage === stage && <Text style={styles.currentLabel}>{t('cropDetail.current')}</Text>}
               </TouchableOpacity>
             ))}
           </View>
@@ -212,7 +213,7 @@ export default function CropDetailScreen() {
           >
             <ArrowUpCircle size={18} color="#fff" />
             <Text style={styles.advanceButtonText}>
-              Advance to {STAGE_LABELS[nextStage]}
+              {t('cropDetail.advanceTo', { stage: getStageLabel(language, nextStage) })}
             </Text>
           </TouchableOpacity>
         )}
@@ -220,20 +221,20 @@ export default function CropDetailScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Activities ({crop.activities.length})</Text>
+          <Text style={styles.sectionTitle}>{t('cropDetail.activities')} ({crop.activities.length})</Text>
           <TouchableOpacity
             onPress={() => router.push({ pathname: '/add-activity', params: { cropId: crop.id } })}
             style={styles.addActivityBtn}
             activeOpacity={0.7}
           >
             <Plus size={16} color="#fff" />
-            <Text style={styles.addActivityText}>Log Activity</Text>
+            <Text style={styles.addActivityText}>{t('cropDetail.logActivity')}</Text>
           </TouchableOpacity>
         </View>
 
         {crop.activities.length === 0 ? (
           <View style={styles.noActivities}>
-            <Text style={styles.noActivitiesText}>No activities logged yet</Text>
+            <Text style={styles.noActivitiesText}>{t('cropDetail.noActivities')}</Text>
           </View>
         ) : (
           [...crop.activities]
@@ -243,7 +244,7 @@ export default function CropDetailScreen() {
                 <View style={styles.activityLeft}>
                   <Text style={styles.activityTitle}>{activity.title}</Text>
                   <Text style={styles.activityMeta}>
-                    {ACTIVITY_LABELS[activity.type]} · {formatDate(activity.date)}
+                    {getActivityLabel(language, activity.type)} · {formatDate(activity.date)}
                   </Text>
                   {activity.description ? (
                     <Text style={styles.activityDesc} numberOfLines={2}>{activity.description}</Text>

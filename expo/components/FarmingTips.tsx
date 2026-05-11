@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { AlertTriangle, Info, ChevronDown, ChevronUp, Lightbulb, ArrowRight, Sprout, BookOpen } from 'lucide-react-native';
-import { GrowthStage, CropCategory, STAGE_LABELS } from '@/types/crop';
+import { GrowthStage, CropCategory } from '@/types/crop';
 import { getTipsForStage, FarmingTip } from '@/mocks/farmingTips';
 import { getCropSpecificTips, getUpcomingCropTips, hasCropSpecificTips, CropSpecificTip } from '@/mocks/cropSpecificTips';
 import Colors from '@/constants/colors';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getStageLabel } from '@/constants/localization';
 
 interface FarmingTipsProps {
   currentStage: GrowthStage;
@@ -13,9 +15,9 @@ interface FarmingTipsProps {
 }
 
 const PRIORITY_CONFIG = {
-  high: { color: '#DC2626', bgColor: '#FEF2F2', label: 'Important', icon: AlertTriangle },
-  medium: { color: '#D97706', bgColor: '#FFFBEB', label: 'Recommended', icon: Info },
-  low: { color: '#0284C7', bgColor: '#F0F9FF', label: 'Good Practice', icon: Info },
+  high: { color: '#DC2626', bgColor: '#FEF2F2', labelKey: 'farmingTips.important', icon: AlertTriangle },
+  medium: { color: '#D97706', bgColor: '#FFFBEB', labelKey: 'farmingTips.recommended', icon: Info },
+  low: { color: '#0284C7', bgColor: '#F0F9FF', labelKey: 'farmingTips.goodPractice', icon: Info },
 };
 
 const STAGES_ORDER: GrowthStage[] = ['planning', 'sowing', 'germination', 'vegetative', 'flowering', 'fruiting', 'ripening', 'harvest', 'completed'];
@@ -24,6 +26,7 @@ function TipCard({ tip }: { tip: FarmingTip | CropSpecificTip }) {
   const [expanded, setExpanded] = useState(false);
   const config = PRIORITY_CONFIG[tip.priority];
   const IconComponent = config.icon;
+  const { t } = useLanguage();
 
   return (
     <TouchableOpacity
@@ -34,7 +37,7 @@ function TipCard({ tip }: { tip: FarmingTip | CropSpecificTip }) {
       <View style={styles.tipHeader}>
         <View style={[styles.priorityBadge, { backgroundColor: config.bgColor }]}>
           <IconComponent size={12} color={config.color} />
-          <Text style={[styles.priorityText, { color: config.color }]}>{config.label}</Text>
+          <Text style={[styles.priorityText, { color: config.color }]}>{t(config.labelKey)}</Text>
         </View>
         {expanded ? (
           <ChevronUp size={16} color={Colors.textMuted} />
@@ -53,6 +56,7 @@ function TipCard({ tip }: { tip: FarmingTip | CropSpecificTip }) {
 export default React.memo(function FarmingTips({ currentStage, category, cropName }: FarmingTipsProps) {
   const [showNextStage, setShowNextStage] = useState(false);
   const [showGeneralTips, setShowGeneralTips] = useState(false);
+  const { language, t } = useLanguage();
 
   const currentIndex = STAGES_ORDER.indexOf(currentStage);
   const nextStage = currentIndex < STAGES_ORDER.length - 1 ? STAGES_ORDER[currentIndex + 1] : null;
@@ -88,16 +92,16 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <Sprout size={18} color={Colors.primary} />
-              <Text style={styles.sectionTitle}>{cropName} Tips</Text>
+              <Text style={styles.sectionTitle}>{t('farmingTips.cropTips', { cropName: cropName ?? '' })}</Text>
             </View>
             <View style={styles.stagePill}>
-              <Text style={styles.stagePillText}>{STAGE_LABELS[currentStage]}</Text>
+              <Text style={styles.stagePillText}>{getStageLabel(language, currentStage)}</Text>
             </View>
           </View>
 
           <View style={styles.cropSpecificBanner}>
             <Text style={styles.cropSpecificBannerText}>
-              Specific suggestions for your {cropName} crop at {STAGE_LABELS[currentStage].toLowerCase()} stage
+              {t('farmingTips.specificSuggestions', { cropName: cropName ?? '', stage: getStageLabel(language, currentStage) })}
             </Text>
           </View>
 
@@ -114,7 +118,7 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
               >
                 <ArrowRight size={16} color={Colors.primary} />
                 <Text style={styles.nextStageToggleText}>
-                  {showNextStage ? 'Hide' : 'Preview'} {cropName} tips for {STAGE_LABELS[nextStage]}
+                  {t('farmingTips.previewCropTips', { action: showNextStage ? t('farmingTips.hideLabel') : t('farmingTips.previewLabel'), cropName: cropName ?? '', stage: getStageLabel(language, nextStage) })}
                 </Text>
                 {showNextStage ? (
                   <ChevronUp size={16} color={Colors.primary} />
@@ -126,7 +130,7 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
               {showNextStage && (
                 <View style={styles.nextStageSection}>
                   <View style={styles.nextStageBadge}>
-                    <Text style={styles.nextStageBadgeText}>Coming Up: {STAGE_LABELS[nextStage]}</Text>
+                    <Text style={styles.nextStageBadgeText}>{t('farmingTips.comingUp', { stage: getStageLabel(language, nextStage) })}</Text>
                   </View>
                   {cropNextTips.map(tip => (
                     <TipCard key={tip.id} tip={tip} />
@@ -145,7 +149,7 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
               >
                 <BookOpen size={16} color={Colors.textSecondary} />
                 <Text style={styles.generalToggleText}>
-                  {showGeneralTips ? 'Hide' : 'Show'} general farming tips
+                  {t('farmingTips.showGeneralTips', { action: showGeneralTips ? t('farmingTips.hideLabel') : t('farmingTips.showLabel') })}
                 </Text>
                 {showGeneralTips ? (
                   <ChevronUp size={16} color={Colors.textSecondary} />
@@ -157,7 +161,7 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
               {showGeneralTips && (
                 <View style={styles.generalSection}>
                   <View style={styles.generalBadge}>
-                    <Text style={styles.generalBadgeText}>General Tips</Text>
+                    <Text style={styles.generalBadgeText}>{t('farmingTips.generalTips')}</Text>
                   </View>
                   {generalCurrentTips.map(tip => (
                     <TipCard key={tip.id} tip={tip} />
@@ -174,15 +178,15 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <Lightbulb size={18} color={Colors.accent} />
-              <Text style={styles.sectionTitle}>Farming Tips</Text>
+              <Text style={styles.sectionTitle}>{t('farmingTips.farmingTips')}</Text>
             </View>
             <View style={styles.stagePill}>
-              <Text style={styles.stagePillText}>{STAGE_LABELS[currentStage]}</Text>
+              <Text style={styles.stagePillText}>{getStageLabel(language, currentStage)}</Text>
             </View>
           </View>
 
           <Text style={styles.subtitle}>
-            Suggestions for the {STAGE_LABELS[currentStage].toLowerCase()} stage to help you produce quality harvest
+            {t('farmingTips.suggestionsForStage', { stage: getStageLabel(language, currentStage) })}
           </Text>
 
           {generalCurrentTips.map(tip => (
@@ -198,7 +202,7 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
               >
                 <ArrowRight size={16} color={Colors.primary} />
                 <Text style={styles.nextStageToggleText}>
-                  {showNextStage ? 'Hide' : 'Preview'} tips for {STAGE_LABELS[nextStage]} stage
+                  {t('farmingTips.previewGeneralTips', { action: showNextStage ? t('farmingTips.hideLabel') : t('farmingTips.previewLabel'), stage: getStageLabel(language, nextStage) })}
                 </Text>
                 {showNextStage ? (
                   <ChevronUp size={16} color={Colors.primary} />
@@ -210,7 +214,7 @@ export default React.memo(function FarmingTips({ currentStage, category, cropNam
               {showNextStage && (
                 <View style={styles.nextStageSection}>
                   <View style={styles.nextStageBadge}>
-                    <Text style={styles.nextStageBadgeText}>Coming Up: {STAGE_LABELS[nextStage]}</Text>
+                    <Text style={styles.nextStageBadgeText}>{t('farmingTips.comingUp', { stage: getStageLabel(language, nextStage) })}</Text>
                   </View>
                   {generalNextTips.slice(0, 4).map(tip => (
                     <TipCard key={tip.id} tip={tip} />

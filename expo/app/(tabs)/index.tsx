@@ -1,17 +1,21 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Sprout, TrendingUp, CheckCircle, Clock, Wheat, Leaf } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCrops } from '@/contexts/CropContext';
-import { STAGE_LABELS, STAGE_COLORS, CATEGORY_LABELS } from '@/types/crop';
+import { STAGE_COLORS } from '@/types/crop';
 import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import Colors from '@/constants/colors';
 import { Image } from 'expo-image';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getStageLabel } from '@/constants/localization';
+import WeatherTips from '@/components/WeatherTips';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { crops, activeCrops, completedCrops, allActivities, isLoading } = useCrops();
+  const { language, t } = useLanguage();
 
   const stats = useMemo(() => {
     const upcomingHarvests = activeCrops.filter(c => {
@@ -27,6 +31,7 @@ export default function DashboardScreen() {
   }, [activeCrops, allActivities]);
 
   const recentActivities = useMemo(() => allActivities.slice(0, 5), [allActivities]);
+  const cropWord = activeCrops.length === 1 ? t('dashboard.cropSingular') : t('dashboard.cropPlural');
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -37,11 +42,11 @@ export default function DashboardScreen() {
         style={styles.hero}
       >
         <View style={styles.heroContent}>
-          <Text style={styles.greeting}>Namaste, Kishan!</Text>
+          <Text style={styles.greeting}>{t('dashboard.greeting')}</Text>
           <Text style={styles.heroSubtitle}>
             {activeCrops.length > 0
-              ? `You have ${activeCrops.length} active crop${activeCrops.length !== 1 ? 's' : ''} growing`
-              : 'Start by adding your first crop'}
+              ? t('dashboard.activeCropsGrowing', { count: activeCrops.length, cropWord })
+              : t('dashboard.addFirstCropPrompt')}
           </Text>
         </View>
         <TouchableOpacity
@@ -53,35 +58,37 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </LinearGradient>
 
+      <WeatherTips activeCropCount={activeCrops.length} />
+
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: '#EFF8F1' }]}>
           <Sprout size={20} color={Colors.primary} />
           <Text style={styles.statNumber}>{activeCrops.length}</Text>
-          <Text style={styles.statLabel}>Active</Text>
+          <Text style={styles.statLabel}>{t('dashboard.active')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: '#FEF9EF' }]}>
           <Clock size={20} color={Colors.accent} />
           <Text style={styles.statNumber}>{stats.upcomingHarvests.length}</Text>
-          <Text style={styles.statLabel}>Harvesting Soon</Text>
+          <Text style={styles.statLabel}>{t('dashboard.harvestingSoon')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: '#F0F7FE' }]}>
           <TrendingUp size={20} color={Colors.info} />
           <Text style={styles.statNumber}>{stats.totalActivities}</Text>
-          <Text style={styles.statLabel}>Activities</Text>
+          <Text style={styles.statLabel}>{t('dashboard.activities')}</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: '#F0FDF4' }]}>
           <CheckCircle size={20} color={Colors.success} />
           <Text style={styles.statNumber}>{completedCrops.length}</Text>
-          <Text style={styles.statLabel}>Harvested</Text>
+          <Text style={styles.statLabel}>{t('dashboard.harvested')}</Text>
         </View>
       </View>
 
       {activeCrops.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Active Crops</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.activeCrops')}</Text>
             <TouchableOpacity onPress={() => router.push('/crops')}>
-              <Text style={styles.seeAll}>See All</Text>
+              <Text style={styles.seeAll}>{t('dashboard.seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cropScroll}>
@@ -103,14 +110,14 @@ export default function DashboardScreen() {
                     <View style={[styles.miniStageBadge, { backgroundColor: stageColor + '18' }]}>
                       <View style={[styles.miniStageDot, { backgroundColor: stageColor }]} />
                       <Text style={[styles.miniStageText, { color: stageColor }]}>
-                        {STAGE_LABELS[crop.currentStage]}
+                        {getStageLabel(language, crop.currentStage)}
                       </Text>
                     </View>
                     <View style={styles.progressBarBg}>
                       <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: stageColor }]} />
                     </View>
                     <Text style={styles.daysLeftText}>
-                      {daysLeft > 0 ? `${daysLeft}d to harvest` : 'Ready to harvest'}
+                      {daysLeft > 0 ? t('dashboard.daysToHarvest', { count: daysLeft }) : t('dashboard.readyToHarvest')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -122,7 +129,7 @@ export default function DashboardScreen() {
 
       {stats.upcomingHarvests.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming Harvests</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.upcomingHarvests')}</Text>
           {stats.upcomingHarvests.map(crop => (
             <TouchableOpacity
               key={crop.id}
@@ -134,7 +141,10 @@ export default function DashboardScreen() {
               <View style={styles.harvestInfo}>
                 <Text style={styles.harvestName}>{crop.name} — {crop.variety}</Text>
                 <Text style={styles.harvestDate}>
-                  Expected: {formatDate(crop.expectedHarvestDate)} ({daysFromNow(crop.expectedHarvestDate)}d)
+                  {t('dashboard.expectedHarvest', {
+                    date: formatDate(crop.expectedHarvestDate),
+                    days: daysFromNow(crop.expectedHarvestDate),
+                  })}
                 </Text>
               </View>
               <Wheat size={20} color={Colors.accent} />
@@ -146,9 +156,9 @@ export default function DashboardScreen() {
       {recentActivities.length > 0 && (
         <View style={[styles.section, { marginBottom: 30 }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activities</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.recentActivities')}</Text>
             <TouchableOpacity onPress={() => router.push('/activities')}>
-              <Text style={styles.seeAll}>See All</Text>
+              <Text style={styles.seeAll}>{t('dashboard.seeAll')}</Text>
             </TouchableOpacity>
           </View>
           {recentActivities.map(activity => (
@@ -171,9 +181,9 @@ export default function DashboardScreen() {
           <View style={styles.emptyIcon}>
             <Leaf size={40} color={Colors.primary} />
           </View>
-          <Text style={styles.emptyTitle}>Welcome to Kishan!</Text>
+          <Text style={styles.emptyTitle}>{t('dashboard.welcomeTitle')}</Text>
           <Text style={styles.emptySubtitle}>
-            Start managing your crops from sowing to harvest. Tap the + button to add your first crop.
+            {t('dashboard.welcomeSubtitle')}
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
@@ -181,7 +191,7 @@ export default function DashboardScreen() {
             activeOpacity={0.8}
           >
             <Plus size={18} color="#fff" />
-            <Text style={styles.emptyButtonText}>Add First Crop</Text>
+            <Text style={styles.emptyButtonText}>{t('dashboard.addFirstCrop')}</Text>
           </TouchableOpacity>
         </View>
       )}

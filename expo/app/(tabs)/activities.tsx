@@ -2,10 +2,12 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { Droplets, Bug, Scissors, Sprout, Eye, Shovel, CircleDot, Zap } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
-import { CropActivity, ACTIVITY_LABELS, ActivityType } from '@/types/crop';
+import { CropActivity, ActivityType } from '@/types/crop';
 import { formatDate } from '@/utils/helpers';
 import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/colors';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getActivityLabel } from '@/constants/localization';
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
   sowing: <Sprout size={18} color="#8B6914" />,
@@ -38,11 +40,12 @@ interface GroupedActivity {
 
 export default function ActivitiesScreen() {
   const { crops, allActivities } = useCrops();
+  const { language, t } = useLanguage();
 
   const groupedActivities = useMemo(() => {
     const withCropName = allActivities.map(a => {
       const crop = crops.find(c => c.id === a.cropId);
-      return { ...a, cropName: crop?.name ?? 'Unknown' };
+      return { ...a, cropName: crop?.name ?? t('activitiesScreen.unknownCrop') };
     });
 
     const grouped: Record<string, (CropActivity & { cropName: string })[]> = {};
@@ -55,7 +58,7 @@ export default function ActivitiesScreen() {
     return Object.entries(grouped)
       .map(([date, activities]) => ({ date, activities }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allActivities, crops]);
+  }, [allActivities, crops, t]);
 
   const totalCost = useMemo(() => {
     return allActivities.reduce((sum, a) => sum + (a.cost || 0), 0);
@@ -65,8 +68,8 @@ export default function ActivitiesScreen() {
     return (
       <View style={styles.container}>
         <EmptyState
-          title="No Activities Yet"
-          subtitle="Log your farming activities like watering, fertilizing, and more to keep track of your progress."
+          title={t('activitiesScreen.noActivitiesTitle')}
+          subtitle={t('activitiesScreen.noActivitiesSubtitle')}
         />
       </View>
     );
@@ -76,7 +79,7 @@ export default function ActivitiesScreen() {
     <View style={styles.container}>
       {totalCost > 0 && (
         <View style={styles.costBanner}>
-          <Text style={styles.costLabel}>Total Expenses</Text>
+          <Text style={styles.costLabel}>{t('activitiesScreen.totalExpenses')}</Text>
           <Text style={styles.costValue}>₹{totalCost.toLocaleString()}</Text>
         </View>
       )}
@@ -102,7 +105,7 @@ export default function ActivitiesScreen() {
                   ) : null}
                 </View>
                 <View style={styles.activityMeta}>
-                  <Text style={styles.activityType}>{ACTIVITY_LABELS[activity.type]}</Text>
+                  <Text style={styles.activityType}>{getActivityLabel(language, activity.type)}</Text>
                   {activity.cost !== undefined && activity.cost > 0 && (
                     <Text style={styles.activityCostText}>₹{activity.cost}</Text>
                   )}
