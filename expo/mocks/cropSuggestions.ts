@@ -207,7 +207,7 @@ export const CROP_PROFILES: CropProfile[] = [
   {
     name: 'Potato',
     category: 'horticulture',
-    imageUrl: 'https://images.unsplash.com/photo-1518977676601-b53f82ber630?w=400',
+    imageUrl: 'https://images.unsplash.com/photo-1518977676601-b53f82be0630?w=400',
     soilTypes: ['loamy', 'sandy', 'alluvial'],
     phMin: 5.5,
     phMax: 6.5,

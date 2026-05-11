@@ -49,7 +49,7 @@ function SuggestionCard({ suggestion }: { suggestion: CropSuggestion }) {
   return (
     <TouchableOpacity
       style={styles.suggCard}
-      onPress={() => setExpanded(e => !e)}
+      onPress={() => setExpanded(prev => !prev)}
       activeOpacity={0.75}
     >
       <View style={styles.suggCardTop}>
