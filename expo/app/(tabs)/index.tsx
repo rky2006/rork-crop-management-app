@@ -109,8 +109,11 @@ export default function DashboardScreen() {
                     <View style={styles.progressBarBg}>
                       <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: stageColor }]} />
                     </View>
-                    <Text style={styles.daysLeftText}>
-                      {daysLeft > 0 ? `${daysLeft}d to harvest` : 'Ready to harvest'}
+                    <Text style={[
+                      styles.daysLeftText,
+                      daysLeft < 0 && { color: Colors.danger, fontWeight: '600' as const },
+                    ]}>
+                      {daysLeft > 0 ? `${daysLeft}d to harvest` : daysLeft < 0 ? `Overdue ${Math.abs(daysLeft)}d` : 'Ready to harvest'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -123,23 +126,35 @@ export default function DashboardScreen() {
       {stats.upcomingHarvests.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Harvests</Text>
-          {stats.upcomingHarvests.map(crop => (
-            <TouchableOpacity
-              key={crop.id}
-              style={styles.harvestCard}
-              onPress={() => router.push({ pathname: '/crop-detail', params: { id: crop.id } })}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.harvestIndicator, { backgroundColor: Colors.accent }]} />
-              <View style={styles.harvestInfo}>
-                <Text style={styles.harvestName}>{crop.name} — {crop.variety}</Text>
-                <Text style={styles.harvestDate}>
-                  Expected: {formatDate(crop.expectedHarvestDate)} ({daysFromNow(crop.expectedHarvestDate)}d)
-                </Text>
-              </View>
-              <Wheat size={20} color={Colors.accent} />
-            </TouchableOpacity>
-          ))}
+          {stats.upcomingHarvests.map(crop => {
+            const harvestDays = daysFromNow(crop.expectedHarvestDate);
+            return (
+              <TouchableOpacity
+                key={crop.id}
+                style={styles.harvestCard}
+                onPress={() => router.push({ pathname: '/crop-detail', params: { id: crop.id } })}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.harvestIndicator, { backgroundColor: harvestDays < 0 ? Colors.danger : Colors.accent }]} />
+                <View style={styles.harvestInfo}>
+                  <Text style={styles.harvestName}>{crop.name} — {crop.variety}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.harvestDate}>
+                      Expected: {formatDate(crop.expectedHarvestDate)} {' '}
+                    </Text>
+                    {harvestDays < 0 ? (
+                      <Text style={[styles.harvestDate, { color: Colors.danger, fontWeight: '600' as const }]}>
+                        (Overdue {Math.abs(harvestDays)}d)
+                      </Text>
+                    ) : (
+                      <Text style={styles.harvestDate}>({harvestDays}d)</Text>
+                    )}
+                  </View>
+                </View>
+                <Wheat size={20} color={harvestDays < 0 ? Colors.danger : Colors.accent} />
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 

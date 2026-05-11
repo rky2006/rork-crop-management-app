@@ -48,13 +48,18 @@ export default function AddActivityScreen() {
       return;
     }
 
-    addActivity(cropId, {
+    const result = addActivity(cropId, {
       type: activityType,
       title: title.trim(),
       description: description.trim(),
       date: new Date(date + 'T00:00:00').toISOString(),
       cost: cost ? parseFloat(cost) : undefined,
     });
+
+    if (!result) {
+      Alert.alert('Error', 'Could not save activity. Crop not found.');
+      return;
+    }
 
     router.back();
   }, [cropId, activityType, title, description, date, cost, addActivity, router]);
