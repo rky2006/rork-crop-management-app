@@ -13,6 +13,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { getStageLabel } from '@/constants/localization';
 import WeatherTips from '@/components/WeatherTips';
 
+const DEFAULT_USERNAME = 'Kishan';
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { crops, activeCrops, completedCrops, allActivities, isLoading, cropsQuery } = useCrops();
@@ -55,11 +57,11 @@ export default function DashboardScreen() {
         style={styles.hero}
       >
         <View style={styles.heroContent}>
-          <Text style={styles.greeting}>{t('dashboard.greeting', { name: username ?? 'Kishan' })}</Text>
+          <Text style={styles.greeting}>{t('dashboard.greeting', { name: username ?? DEFAULT_USERNAME })}</Text>
           <Text style={styles.heroSubtitle}>
             {activeCrops.length > 0
               ? t('dashboard.activeCropsGrowing', { count: activeCrops.length, cropWord })
-              : t('dashboard.addFirstCropPrompt', { name: username ?? 'Kishan' })}
+              : t('dashboard.addFirstCropPrompt', { name: username ?? DEFAULT_USERNAME })}
           </Text>
         </View>
         <TouchableOpacity
