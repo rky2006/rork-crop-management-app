@@ -12,6 +12,10 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+function HeaderLanguageMenu() {
+  return <LanguageMenu />;
+}
+
 function RootLayoutNav() {
   const { t } = useLanguage();
 
@@ -20,7 +24,7 @@ function RootLayoutNav() {
       screenOptions={{
         headerBackTitle: t('stack.back'),
         contentStyle: { backgroundColor: Colors.background },
-        headerRight: () => <LanguageMenu />,
+        headerRight: HeaderLanguageMenu,
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

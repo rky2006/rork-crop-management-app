@@ -5,6 +5,10 @@ import Colors from "@/constants/colors";
 import LanguageMenu from "@/components/LanguageMenu";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+function HeaderLanguageMenu() {
+  return <LanguageMenu />;
+}
+
 export default function TabLayout() {
   const { t } = useLanguage();
 
@@ -22,7 +26,7 @@ export default function TabLayout() {
         },
         headerTintColor: Colors.text,
         headerShadowVisible: false,
-        headerRight: () => <LanguageMenu />,
+        headerRight: HeaderLanguageMenu,
       }}
     >
       <Tabs.Screen
