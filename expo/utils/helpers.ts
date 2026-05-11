@@ -1,5 +1,7 @@
+import * as Crypto from 'expo-crypto';
+
 export function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+  return Crypto.randomUUID();
 }
 
 export function formatDate(dateString: string): string {
@@ -49,7 +51,7 @@ export function calculateAutoStage(sowingDate: string, harvestDate: string): Gro
   const harvest = new Date(harvestDate).getTime();
 
   if (now < sow) return 'planning';
-  if (now >= harvest) return 'harvest';
+  if (now >= harvest) return 'completed';
 
   const progress = ((now - sow) / (harvest - sow)) * 100;
 

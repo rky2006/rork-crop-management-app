@@ -31,26 +31,10 @@ export const [CropProvider, useCrops] = createContextHook(() => {
   });
 
   useEffect(() => {
-    if (cropsQuery.data) {
-      const updatedCrops = cropsQuery.data.map(crop => {
-        if (crop.currentStage === 'completed') return crop;
-        const autoStage = calculateAutoStage(crop.sowingDate, crop.expectedHarvestDate);
-        if (autoStage !== crop.currentStage) {
-          console.log(`Auto-updating ${crop.name} stage: ${crop.currentStage} -> ${autoStage}`);
-          return { ...crop, currentStage: autoStage };
-        }
-        return crop;
-      });
-      setCrops(updatedCrops);
-      const hasChanges = updatedCrops.some((c, i) => c.currentStage !== cropsQuery.data![i].currentStage);
-      if (hasChanges) {
-        saveCrops(updatedCrops);
-      }
-    }
-  }, [cropsQuery.data]);
+    if (!cropsQuery.data) return;
 
-  const autoUpdateStages = useCallback(() => {
-    const updatedCrops = crops.map(crop => {
+    // Initial auto-update when data loads from storage
+    const updatedCrops = cropsQuery.data.map(crop => {
       if (crop.currentStage === 'completed') return crop;
       const autoStage = calculateAutoStage(crop.sowingDate, crop.expectedHarvestDate);
       if (autoStage !== crop.currentStage) {
@@ -59,17 +43,34 @@ export const [CropProvider, useCrops] = createContextHook(() => {
       }
       return crop;
     });
-    const hasChanges = updatedCrops.some((c, i) => c.currentStage !== crops[i].currentStage);
+    setCrops(updatedCrops);
+    const hasChanges = updatedCrops.some((c, i) => c.currentStage !== cropsQuery.data![i].currentStage);
     if (hasChanges) {
-      setCrops(updatedCrops);
       syncMutation.mutate(updatedCrops);
     }
-  }, [crops, syncMutation]);
 
-  useEffect(() => {
-    const interval = setInterval(autoUpdateStages, 60 * 60 * 1000);
+    // Hourly interval using functional state updates to avoid stale closures
+    const interval = setInterval(() => {
+      setCrops(prevCrops => {
+        const updated = prevCrops.map(crop => {
+          if (crop.currentStage === 'completed') return crop;
+          const autoStage = calculateAutoStage(crop.sowingDate, crop.expectedHarvestDate);
+          if (autoStage !== crop.currentStage) {
+            console.log(`Auto-updating ${crop.name} stage: ${crop.currentStage} -> ${autoStage}`);
+            return { ...crop, currentStage: autoStage };
+          }
+          return crop;
+        });
+        const hasChanges = updated.some((c, i) => c.currentStage !== prevCrops[i].currentStage);
+        if (hasChanges) {
+          syncMutation.mutate(updated);
+        }
+        return updated;
+      });
+    }, 60 * 60 * 1000);
+
     return () => clearInterval(interval);
-  }, [autoUpdateStages]);
+  }, [cropsQuery.data]);
 
   const addCrop = useCallback((cropData: Omit<Crop, 'id' | 'activities' | 'createdAt'>) => {
     const newCrop: Crop = {
@@ -104,24 +105,37 @@ export const [CropProvider, useCrops] = createContextHook(() => {
     console.log('Stage updated:', id, stage);
   }, [updateCrop]);
 
-  const addActivity = useCallback((cropId: string, activityData: Omit<CropActivity, 'id' | 'cropId'>) => {
+  const addActivity = useCallback((cropId: string, activityData: Omit<CropActivity, 'id' | 'cropId'>): CropActivity | null => {
+    const crop = crops.find(c => c.id === cropId);
+    if (!crop) {
+      console.warn('Activity not saved: crop not found', cropId);
+      return null;
+    }
     const activity: CropActivity = {
       ...activityData,
       id: generateId(),
       cropId,
     };
-    const crop = crops.find(c => c.id === cropId);
-    if (crop) {
-      const updated = crops.map(c =>
-        c.id === cropId
-          ? { ...c, activities: [...c.activities, activity] }
-          : c
-      );
-      setCrops(updated);
-      syncMutation.mutate(updated);
-      console.log('Activity added to crop:', cropId, activity.title);
-    }
+    const updated = crops.map(c =>
+      c.id === cropId
+        ? { ...c, activities: [...c.activities, activity] }
+        : c
+    );
+    setCrops(updated);
+    syncMutation.mutate(updated);
+    console.log('Activity added to crop:', cropId, activity.title);
     return activity;
+  }, [crops, syncMutation]);
+
+  const deleteActivity = useCallback((cropId: string, activityId: string) => {
+    const updated = crops.map(c =>
+      c.id === cropId
+        ? { ...c, activities: c.activities.filter(a => a.id !== activityId) }
+        : c
+    );
+    setCrops(updated);
+    syncMutation.mutate(updated);
+    console.log('Activity deleted:', activityId);
   }, [crops, syncMutation]);
 
   const getCropById = useCallback((id: string): Crop | undefined => {
@@ -143,11 +157,13 @@ export const [CropProvider, useCrops] = createContextHook(() => {
     completedCrops,
     allActivities,
     isLoading: cropsQuery.isLoading,
+    cropsQuery,
     addCrop,
     updateCrop,
     deleteCrop,
     updateStage,
     addActivity,
+    deleteActivity,
     getCropById,
   };
 });

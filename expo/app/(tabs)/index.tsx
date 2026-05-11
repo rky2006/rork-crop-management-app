@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Sprout, TrendingUp, CheckCircle, Clock, Wheat, Leaf } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCrops } from '@/contexts/CropContext';
+import { useUser } from '@/contexts/UserContext';
 import { STAGE_COLORS } from '@/types/crop';
 import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import Colors from '@/constants/colors';
@@ -14,8 +15,10 @@ import WeatherTips from '@/components/WeatherTips';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { crops, activeCrops, completedCrops, allActivities, isLoading } = useCrops();
+  const { crops, activeCrops, completedCrops, allActivities, isLoading, cropsQuery } = useCrops();
+  const { username } = useUser();
   const { language, t } = useLanguage();
+  const [refreshing, setRefreshing] = useState(false);
 
   const stats = useMemo(() => {
     const upcomingHarvests = activeCrops.filter(c => {
@@ -33,8 +36,18 @@ export default function DashboardScreen() {
   const recentActivities = useMemo(() => allActivities.slice(0, 5), [allActivities]);
   const cropWord = activeCrops.length === 1 ? t('dashboard.cropSingular') : t('dashboard.cropPlural');
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await cropsQuery.refetch();
+    setRefreshing(false);
+  }, [cropsQuery]);
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+    >
       <LinearGradient
         colors={['#2D6A4F', '#40916C', '#52B788']}
         start={{ x: 0, y: 0 }}
@@ -42,11 +55,11 @@ export default function DashboardScreen() {
         style={styles.hero}
       >
         <View style={styles.heroContent}>
-          <Text style={styles.greeting}>{t('dashboard.greeting')}</Text>
+          <Text style={styles.greeting}>{t('dashboard.greeting', { name: username ?? 'Kishan' })}</Text>
           <Text style={styles.heroSubtitle}>
             {activeCrops.length > 0
               ? t('dashboard.activeCropsGrowing', { count: activeCrops.length, cropWord })
-              : t('dashboard.addFirstCropPrompt')}
+              : t('dashboard.addFirstCropPrompt', { name: username ?? 'Kishan' })}
           </Text>
         </View>
         <TouchableOpacity
@@ -116,8 +129,15 @@ export default function DashboardScreen() {
                     <View style={styles.progressBarBg}>
                       <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: stageColor }]} />
                     </View>
-                    <Text style={styles.daysLeftText}>
-                      {daysLeft > 0 ? t('dashboard.daysToHarvest', { count: daysLeft }) : t('dashboard.readyToHarvest')}
+                    <Text style={[
+                      styles.daysLeftText,
+                      daysLeft < 0 && { color: Colors.danger, fontWeight: '600' as const },
+                    ]}>
+                      {daysLeft > 0
+                        ? t('dashboard.daysToHarvest', { count: daysLeft })
+                        : daysLeft < 0
+                          ? t('dashboard.overdueBy', { count: Math.abs(daysLeft) })
+                          : t('dashboard.readyToHarvest')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -130,26 +150,36 @@ export default function DashboardScreen() {
       {stats.upcomingHarvests.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('dashboard.upcomingHarvests')}</Text>
-          {stats.upcomingHarvests.map(crop => (
-            <TouchableOpacity
-              key={crop.id}
-              style={styles.harvestCard}
-              onPress={() => router.push({ pathname: '/crop-detail', params: { id: crop.id } })}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.harvestIndicator, { backgroundColor: Colors.accent }]} />
-              <View style={styles.harvestInfo}>
-                <Text style={styles.harvestName}>{crop.name} — {crop.variety}</Text>
-                <Text style={styles.harvestDate}>
-                  {t('dashboard.expectedHarvest', {
-                    date: formatDate(crop.expectedHarvestDate),
-                    days: daysFromNow(crop.expectedHarvestDate),
-                  })}
-                </Text>
-              </View>
-              <Wheat size={20} color={Colors.accent} />
-            </TouchableOpacity>
-          ))}
+          {stats.upcomingHarvests.map(crop => {
+            const harvestDays = daysFromNow(crop.expectedHarvestDate);
+            const isOverdue = harvestDays < 0;
+
+            return (
+              <TouchableOpacity
+                key={crop.id}
+                style={styles.harvestCard}
+                onPress={() => router.push({ pathname: '/crop-detail', params: { id: crop.id } })}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.harvestIndicator, { backgroundColor: isOverdue ? Colors.danger : Colors.accent }]} />
+                <View style={styles.harvestInfo}>
+                  <Text style={styles.harvestName}>{crop.name} — {crop.variety}</Text>
+                  <Text style={[styles.harvestDate, isOverdue && styles.harvestDateOverdue]}>
+                    {isOverdue
+                      ? t('dashboard.expectedHarvestOverdue', {
+                          date: formatDate(crop.expectedHarvestDate),
+                          count: Math.abs(harvestDays),
+                        })
+                      : t('dashboard.expectedHarvest', {
+                          date: formatDate(crop.expectedHarvestDate),
+                          days: harvestDays,
+                        })}
+                  </Text>
+                </View>
+                <Wheat size={20} color={isOverdue ? Colors.danger : Colors.accent} />
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -381,6 +411,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
+  },
+  harvestDateOverdue: {
+    color: Colors.danger,
+    fontWeight: '600' as const,
   },
   activityRow: {
     flexDirection: 'row',

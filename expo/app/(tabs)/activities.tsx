@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { Droplets, Bug, Scissors, Sprout, Eye, Shovel, CircleDot, Zap } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
 import { CropActivity, ActivityType } from '@/types/crop';
@@ -39,7 +39,7 @@ interface GroupedActivity {
 }
 
 export default function ActivitiesScreen() {
-  const { crops, allActivities } = useCrops();
+  const { crops, allActivities, deleteActivity } = useCrops();
   const { language, t } = useLanguage();
 
   const groupedActivities = useMemo(() => {
@@ -93,7 +93,26 @@ export default function ActivitiesScreen() {
           <View style={styles.dateGroup}>
             <Text style={styles.dateHeader}>{formatDate(group.date)}</Text>
             {group.activities.map(activity => (
-              <View key={activity.id} style={styles.activityCard}>
+              <TouchableOpacity
+                key={activity.id}
+                style={styles.activityCard}
+                onLongPress={() => {
+                  Alert.alert(
+                    t('activitiesScreen.deleteActivityTitle'),
+                    t('activitiesScreen.deleteActivityMessage', { title: activity.title }),
+                    [
+                      { text: t('activitiesScreen.cancel'), style: 'cancel' },
+                      {
+                        text: t('activitiesScreen.delete'),
+                        style: 'destructive',
+                        onPress: () => deleteActivity(activity.cropId, activity.id),
+                      },
+                    ]
+                  );
+                }}
+                activeOpacity={0.8}
+                delayLongPress={500}
+              >
                 <View style={[styles.iconCircle, { backgroundColor: ACTIVITY_COLORS[activity.type] }]}>
                   {ACTIVITY_ICONS[activity.type]}
                 </View>
@@ -103,6 +122,7 @@ export default function ActivitiesScreen() {
                   {activity.description ? (
                     <Text style={styles.activityDesc} numberOfLines={2}>{activity.description}</Text>
                   ) : null}
+                  <Text style={styles.longPressHint}>{t('activitiesScreen.longPressHint')}</Text>
                 </View>
                 <View style={styles.activityMeta}>
                   <Text style={styles.activityType}>{getActivityLabel(language, activity.type)}</Text>
@@ -110,7 +130,7 @@ export default function ActivitiesScreen() {
                     <Text style={styles.activityCostText}>₹{activity.cost}</Text>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -198,6 +218,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 3,
+  },
+  longPressHint: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 3,
+    fontStyle: 'italic',
   },
   activityMeta: {
     alignItems: 'flex-end',
