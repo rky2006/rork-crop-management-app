@@ -124,9 +124,26 @@ export default function DiseaseDiagnosisScreen() {
 
     try {
       const selectedCrop = selectedCropId ? crops.find(c => c.id === selectedCropId) : null;
-      const cropContext = selectedCrop
+      let cropContext = selectedCrop
         ? `The farmer is growing ${selectedCrop.name} (${selectedCrop.variety}), currently in ${selectedCrop.currentStage} stage, farming type: ${selectedCrop.farmingType}.`
         : 'The farmer has uploaded a photo of their crop.';
+
+      if (selectedCrop?.soilReport) {
+        const sr = selectedCrop.soilReport;
+        const soilDetails = [
+          sr.soilType && `Soil type: ${sr.soilType}`,
+          sr.ph && `Soil pH: ${sr.ph}`,
+          sr.nitrogen && `Nitrogen: ${sr.nitrogen} kg/ha`,
+          sr.phosphorus && `Phosphorus: ${sr.phosphorus} kg/ha`,
+          sr.potassium && `Potassium: ${sr.potassium} kg/ha`,
+          sr.organicCarbon && `Organic carbon: ${sr.organicCarbon}%`,
+          sr.waterPh && `Water pH: ${sr.waterPh}`,
+          sr.waterEc && `Water EC: ${sr.waterEc}`,
+        ].filter(Boolean).join(', ');
+        if (soilDetails) {
+          cropContext += ` Field soil/water report: ${soilDetails}.`;
+        }
+      }
 
       const result = await generateObject({
         messages: [

@@ -46,7 +46,7 @@ export const [CropProvider, useCrops] = createContextHook(() => {
     setCrops(updatedCrops);
     const hasChanges = updatedCrops.some((c, i) => c.currentStage !== cropsQuery.data![i].currentStage);
     if (hasChanges) {
-      saveCrops(updatedCrops);
+      syncMutation.mutate(updatedCrops);
     }
 
     // Hourly interval using functional state updates to avoid stale closures
@@ -63,7 +63,7 @@ export const [CropProvider, useCrops] = createContextHook(() => {
         });
         const hasChanges = updated.some((c, i) => c.currentStage !== prevCrops[i].currentStage);
         if (hasChanges) {
-          saveCrops(updated);
+          syncMutation.mutate(updated);
         }
         return updated;
       });
@@ -127,6 +127,17 @@ export const [CropProvider, useCrops] = createContextHook(() => {
     return activity;
   }, [crops, syncMutation]);
 
+  const deleteActivity = useCallback((cropId: string, activityId: string) => {
+    const updated = crops.map(c =>
+      c.id === cropId
+        ? { ...c, activities: c.activities.filter(a => a.id !== activityId) }
+        : c
+    );
+    setCrops(updated);
+    syncMutation.mutate(updated);
+    console.log('Activity deleted:', activityId);
+  }, [crops, syncMutation]);
+
   const getCropById = useCallback((id: string): Crop | undefined => {
     return crops.find(c => c.id === id);
   }, [crops]);
@@ -146,11 +157,13 @@ export const [CropProvider, useCrops] = createContextHook(() => {
     completedCrops,
     allActivities,
     isLoading: cropsQuery.isLoading,
+    cropsQuery,
     addCrop,
     updateCrop,
     deleteCrop,
     updateStage,
     addActivity,
+    deleteActivity,
     getCropById,
   };
 });

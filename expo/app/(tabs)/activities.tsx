@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { Droplets, Bug, Scissors, Sprout, Eye, Shovel, CircleDot, Zap } from 'lucide-react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { Droplets, Bug, Scissors, Sprout, Eye, Shovel, CircleDot, Zap, Trash2 } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
 import { CropActivity, ACTIVITY_LABELS, ActivityType } from '@/types/crop';
 import { formatDate } from '@/utils/helpers';
@@ -37,7 +37,7 @@ interface GroupedActivity {
 }
 
 export default function ActivitiesScreen() {
-  const { crops, allActivities } = useCrops();
+  const { crops, allActivities, deleteActivity } = useCrops();
 
   const groupedActivities = useMemo(() => {
     const withCropName = allActivities.map(a => {
@@ -90,24 +90,44 @@ export default function ActivitiesScreen() {
           <View style={styles.dateGroup}>
             <Text style={styles.dateHeader}>{formatDate(group.date)}</Text>
             {group.activities.map(activity => (
-              <View key={activity.id} style={styles.activityCard}>
-                <View style={[styles.iconCircle, { backgroundColor: ACTIVITY_COLORS[activity.type] }]}>
-                  {ACTIVITY_ICONS[activity.type]}
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>{activity.title}</Text>
-                  <Text style={styles.activityCrop}>{activity.cropName}</Text>
-                  {activity.description ? (
-                    <Text style={styles.activityDesc} numberOfLines={2}>{activity.description}</Text>
-                  ) : null}
-                </View>
-                <View style={styles.activityMeta}>
-                  <Text style={styles.activityType}>{ACTIVITY_LABELS[activity.type]}</Text>
-                  {activity.cost !== undefined && activity.cost > 0 && (
-                    <Text style={styles.activityCostText}>₹{activity.cost}</Text>
-                  )}
-                </View>
+              <TouchableOpacity
+              key={activity.id}
+              style={styles.activityCard}
+              onLongPress={() => {
+                Alert.alert(
+                  'Delete Activity',
+                  `Delete "${activity.title}"?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => deleteActivity(activity.cropId, activity.id),
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.8}
+              delayLongPress={500}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: ACTIVITY_COLORS[activity.type] }]}>
+                {ACTIVITY_ICONS[activity.type]}
               </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>{activity.title}</Text>
+                <Text style={styles.activityCrop}>{activity.cropName}</Text>
+                {activity.description ? (
+                  <Text style={styles.activityDesc} numberOfLines={2}>{activity.description}</Text>
+                ) : null}
+                <Text style={styles.longPressHint}>Long press to delete</Text>
+              </View>
+              <View style={styles.activityMeta}>
+                <Text style={styles.activityType}>{ACTIVITY_LABELS[activity.type]}</Text>
+                {activity.cost !== undefined && activity.cost > 0 && (
+                  <Text style={styles.activityCostText}>₹{activity.cost}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
             ))}
           </View>
         )}
@@ -195,6 +215,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 3,
+  },
+  longPressHint: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 3,
+    fontStyle: 'italic',
   },
   activityMeta: {
     alignItems: 'flex-end',

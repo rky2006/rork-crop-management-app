@@ -93,7 +93,7 @@ export default function AddCropScreen() {
       category,
       variety: finalVariety,
       plotName: plotName.trim(),
-      plotSize: plotSize.trim() || 'N/A',
+      plotSize: plotSize.trim(),
       sowingDate: new Date(sowingDate + 'T00:00:00').toISOString(),
       expectedHarvestDate: new Date(expectedHarvestDate + 'T00:00:00').toISOString(),
       currentStage: 'sowing' as GrowthStage,

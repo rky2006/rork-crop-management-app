@@ -63,7 +63,7 @@ export default React.memo(function CropCard({ crop, onPress }: CropCardProps) {
         <StageTimeline currentStage={crop.currentStage} compact />
         <View style={styles.progressRow}>
           <Text style={styles.progressLabel}>{progress}% complete</Text>
-          <Text style={styles.plotSize}>{crop.plotSize}</Text>
+          {crop.plotSize ? <Text style={styles.plotSize}>{crop.plotSize} ac</Text> : null}
         </View>
       </View>
     </TouchableOpacity>

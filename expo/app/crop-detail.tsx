@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  MapPin, Calendar, Trash2, Plus, ChevronRight,
+  MapPin, Calendar, Trash2, Plus, ChevronRight, Pencil,
   ArrowUpCircle, BarChart3, FlaskConical, Leaf, Factory
 } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
@@ -22,8 +22,9 @@ import Colors from '@/constants/colors';
 export default function CropDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getCropById, updateStage, deleteCrop } = useCrops();
+  const { getCropById, updateStage, deleteCrop, deleteActivity } = useCrops();
   const [showStageSelector, setShowStageSelector] = useState(false);
+  const [pressedActivityId, setPressedActivityId] = useState<string | null>(null);
 
   const crop = getCropById(id ?? '');
 
@@ -63,6 +64,22 @@ export default function CropDetailScreen() {
       setShowStageSelector(false);
     }
   }, [crop, updateStage]);
+
+  const handleDeleteActivity = useCallback((activityId: string) => {
+    if (!crop) return;
+    Alert.alert(
+      'Delete Activity',
+      'Are you sure you want to delete this activity?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteActivity(crop.id, activityId),
+        },
+      ]
+    );
+  }, [crop, deleteActivity]);
 
   if (!crop) {
     return (
@@ -152,7 +169,7 @@ export default function CropDetailScreen() {
         <View style={styles.infoRow}>
           <BarChart3 size={16} color={Colors.textMuted} />
           <Text style={styles.infoLabel}>Size</Text>
-          <Text style={styles.infoValue}>{crop.plotSize}</Text>
+          <Text style={styles.infoValue}>{crop.plotSize || 'Not specified'}</Text>
         </View>
         <View style={styles.infoRow}>
           <Calendar size={16} color={Colors.textMuted} />
@@ -171,14 +188,24 @@ export default function CropDetailScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Growth Timeline</Text>
-          <TouchableOpacity
-            onPress={() => setShowStageSelector(!showStageSelector)}
-            style={styles.updateStageBtn}
-            activeOpacity={0.7}
-          >
-            <ArrowUpCircle size={16} color={Colors.primary} />
-            <Text style={styles.updateStageText}>Update Stage</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/edit-crop', params: { id: crop.id } })}
+              style={styles.updateStageBtn}
+              activeOpacity={0.7}
+            >
+              <Pencil size={16} color={Colors.primary} />
+              <Text style={styles.updateStageText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowStageSelector(!showStageSelector)}
+              style={styles.updateStageBtn}
+              activeOpacity={0.7}
+            >
+              <ArrowUpCircle size={16} color={Colors.primary} />
+              <Text style={styles.updateStageText}>Update Stage</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {showStageSelector && (
@@ -243,7 +270,18 @@ export default function CropDetailScreen() {
           [...crop.activities]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .map(activity => (
-              <View key={activity.id} style={styles.activityCard}>
+              <TouchableOpacity
+                key={activity.id}
+                style={[
+                  styles.activityCard,
+                  pressedActivityId === activity.id && styles.activityCardPressed,
+                ]}
+                onLongPress={() => handleDeleteActivity(activity.id)}
+                onPressIn={() => setPressedActivityId(activity.id)}
+                onPressOut={() => setPressedActivityId(null)}
+                activeOpacity={0.8}
+                delayLongPress={500}
+              >
                 <View style={styles.activityLeft}>
                   <Text style={styles.activityTitle}>{activity.title}</Text>
                   <Text style={styles.activityMeta}>
@@ -252,11 +290,12 @@ export default function CropDetailScreen() {
                   {activity.description ? (
                     <Text style={styles.activityDesc} numberOfLines={2}>{activity.description}</Text>
                   ) : null}
+                  <Text style={styles.longPressHint}>Long press to delete</Text>
                 </View>
                 {activity.cost !== undefined && activity.cost > 0 && (
                   <Text style={styles.activityCost}>₹{activity.cost}</Text>
                 )}
-              </View>
+              </TouchableOpacity>
             ))
         )}
       </View>
@@ -604,6 +643,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
+  activityCardPressed: {
+    backgroundColor: Colors.borderLight,
+  },
   activityLeft: {
     flex: 1,
   },
@@ -621,6 +663,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 4,
+  },
+  longPressHint: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   activityCost: {
     fontSize: 14,

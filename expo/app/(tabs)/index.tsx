@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Sprout, TrendingUp, CheckCircle, Clock, Wheat, Leaf } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCrops } from '@/contexts/CropContext';
+import { useUser } from '@/contexts/UserContext';
 import { STAGE_LABELS, STAGE_COLORS, CATEGORY_LABELS } from '@/types/crop';
 import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import Colors from '@/constants/colors';
@@ -11,7 +12,9 @@ import { Image } from 'expo-image';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { crops, activeCrops, completedCrops, allActivities, isLoading } = useCrops();
+  const { crops, activeCrops, completedCrops, allActivities, isLoading, cropsQuery } = useCrops();
+  const { username } = useUser();
+  const [refreshing, setRefreshing] = useState(false);
 
   const stats = useMemo(() => {
     const upcomingHarvests = activeCrops.filter(c => {
@@ -28,8 +31,18 @@ export default function DashboardScreen() {
 
   const recentActivities = useMemo(() => allActivities.slice(0, 5), [allActivities]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await cropsQuery.refetch();
+    setRefreshing(false);
+  }, [cropsQuery]);
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+    >
       <LinearGradient
         colors={['#2D6A4F', '#40916C', '#52B788']}
         start={{ x: 0, y: 0 }}
@@ -37,11 +50,11 @@ export default function DashboardScreen() {
         style={styles.hero}
       >
         <View style={styles.heroContent}>
-          <Text style={styles.greeting}>Namaste, Kishan!</Text>
+          <Text style={styles.greeting}>Namaste, {username ?? 'Kishan'}!</Text>
           <Text style={styles.heroSubtitle}>
             {activeCrops.length > 0
               ? `You have ${activeCrops.length} active crop${activeCrops.length !== 1 ? 's' : ''} growing`
-              : 'Start by adding your first crop'}
+              : `Welcome to AISmartKheti, ${username ?? 'Kishan'}!`}
           </Text>
         </View>
         <TouchableOpacity
