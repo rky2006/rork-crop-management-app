@@ -3,26 +3,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 
 const USERNAME_KEY = 'aismartkheti_username';
-
-async function loadUsername(): Promise<string | null> {
-  return AsyncStorage.getItem(USERNAME_KEY);
-}
-
-async function saveUsername(name: string): Promise<void> {
-  await AsyncStorage.setItem(USERNAME_KEY, name);
-}
-
-async function clearUsername(): Promise<void> {
-  await AsyncStorage.removeItem(USERNAME_KEY);
-}
+const LOCATION_KEY = 'aismartkheti_location';
 
 export const [UserProvider, useUser] = createContextHook(() => {
   const [username, setUsernameState] = useState<string | null>(null);
+  const [location, setLocationState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadUsername().then(name => {
+    Promise.all([
+      AsyncStorage.getItem(USERNAME_KEY),
+      AsyncStorage.getItem(LOCATION_KEY),
+    ]).then(([name, loc]) => {
       setUsernameState(name);
+      setLocationState(loc);
       setIsLoading(false);
     });
   }, []);
@@ -30,19 +24,26 @@ export const [UserProvider, useUser] = createContextHook(() => {
   const setUsername = useCallback((name: string) => {
     const trimmed = name.trim();
     setUsernameState(trimmed);
-    saveUsername(trimmed);
+    AsyncStorage.setItem(USERNAME_KEY, trimmed);
+  }, []);
+
+  const setLocation = useCallback((state: string) => {
+    setLocationState(state);
+    AsyncStorage.setItem(LOCATION_KEY, state);
   }, []);
 
   const logout = useCallback(() => {
     setUsernameState(null);
-    clearUsername();
+    AsyncStorage.removeItem(USERNAME_KEY);
   }, []);
 
   return {
     username,
+    location,
     isLoading,
     isLoggedIn: !!username,
     setUsername,
+    setLocation,
     logout,
   };
 });

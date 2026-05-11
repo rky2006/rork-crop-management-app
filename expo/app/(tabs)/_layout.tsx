@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { LayoutDashboard, Wheat, ClipboardList, ScanLine } from "lucide-react-native";
+import { LayoutDashboard, Wheat, ClipboardList, ScanLine, Lightbulb } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -46,6 +46,13 @@ export default function TabLayout() {
         options={{
           title: "Disease Scan",
           tabBarIcon: ({ color, size }) => <ScanLine size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="suggestions"
+        options={{
+          title: "Crop Advisor",
+          tabBarIcon: ({ color, size }) => <Lightbulb size={size} color={color} />,
         }}
       />
     </Tabs>
