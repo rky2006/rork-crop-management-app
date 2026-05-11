@@ -168,7 +168,7 @@ export default function DashboardScreen() {
                     {isOverdue
                       ? t('dashboard.expectedHarvestOverdue', {
                           date: formatDate(crop.expectedHarvestDate),
-                          count: Math.abs(harvestDays),
+                          count: -harvestDays,
                         })
                       : t('dashboard.expectedHarvest', {
                           date: formatDate(crop.expectedHarvestDate),

@@ -138,7 +138,7 @@ export default function CropDetailScreen() {
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, daysLeft < 0 && { color: Colors.danger }]}>
-            {daysLeft < 0 ? `+${Math.abs(daysLeft)}` : daysLeft}
+            {daysLeft < 0 ? `+${-daysLeft}` : daysLeft}
           </Text>
           <Text style={[styles.statLabel, daysLeft < 0 && { color: Colors.danger }]}>
             {daysLeft < 0 ? t('cropDetail.daysOverdue') : t('cropDetail.daysLeft')}
