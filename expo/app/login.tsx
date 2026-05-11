@@ -46,7 +46,7 @@ export default function LoginScreen() {
           <View style={styles.iconContainer}>
             <Sprout size={48} color="#fff" />
           </View>
-          <Text style={styles.appName}>AISmartKheti</Text>
+          <Text style={styles.appName}>AISmartKisan</Text>
           <Text style={styles.tagline}>Smart Crop Management for Every Farmer</Text>
         </LinearGradient>
 

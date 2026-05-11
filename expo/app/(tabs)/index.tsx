@@ -54,7 +54,7 @@ export default function DashboardScreen() {
           <Text style={styles.heroSubtitle}>
             {activeCrops.length > 0
               ? `You have ${activeCrops.length} active crop${activeCrops.length !== 1 ? 's' : ''} growing`
-              : `Welcome to AISmartKheti, ${username ?? 'Kishan'}!`}
+              : `Welcome to AISmartKisan, ${username ?? 'Kishan'}!`}
           </Text>
         </View>
         <TouchableOpacity
