@@ -24,7 +24,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isLoggedIn) {
       if (!language && !inLanguageScreen) {
         router.replace('/language');
-      } else if (language && !inLoginScreen) {
+      } else if (language && !inLoginScreen && !inLanguageScreen) {
         router.replace('/login');
       }
     } else if (isLoggedIn && (inLoginScreen || inLanguageScreen)) {
