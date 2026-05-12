@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Platform,
@@ -144,6 +144,7 @@ export default function SuggestionsScreen() {
   const [chatInput, setChatInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const messageIdCounterRef = useRef(0);
 
   const selectedState = INDIAN_STATES.find(s => s.label === location) ?? null;
 
@@ -236,18 +237,23 @@ export default function SuggestionsScreen() {
     ExpoSpeechRecognitionModule.stop();
   }, []);
 
+  const generateMessageId = useCallback((role: 'user' | 'bot') => {
+    messageIdCounterRef.current += 1;
+    return `${role}-${Date.now()}-${messageIdCounterRef.current}`;
+  }, []);
+
   const handleSendChatMessage = useCallback(() => {
     const question = chatInput.trim();
     if (!question) return;
 
     const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: generateMessageId('user'),
       role: 'user',
       text: question,
     };
 
     const botMessage: ChatMessage = {
-      id: `bot-${Date.now()}`,
+      id: generateMessageId('bot'),
       role: 'bot',
       text: getFarmerChatbotReply({
         query: question,
@@ -260,7 +266,7 @@ export default function SuggestionsScreen() {
 
     setChatMessages(prev => [...prev, userMessage, botMessage]);
     setChatInput('');
-  }, [chatInput, language, season, location, topCropNames]);
+  }, [chatInput, generateMessageId, language, season, location, topCropNames]);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
