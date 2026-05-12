@@ -43,9 +43,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const logout = useCallback(() => {
     setUsernameState(null);
-    setLanguageState(null);
     AsyncStorage.removeItem(USERNAME_KEY);
-    AsyncStorage.removeItem(LANGUAGE_KEY);
   }, []);
 
   return {
