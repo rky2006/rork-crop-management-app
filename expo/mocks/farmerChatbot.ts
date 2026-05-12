@@ -20,7 +20,9 @@ const SEASON_TEXT: Record<Season, { en: string; hi: string }> = {
   zaid: { en: 'Zaid', hi: 'जायद' },
 };
 
-function isHindi(language: string | null): boolean {
+const MAX_TOP_CROP_HINTS = 3;
+
+function isLanguageHindi(language: string | null): boolean {
   return language === 'hi';
 }
 
@@ -33,7 +35,7 @@ export function createBotWelcomeMessage(language: string | null): ChatMessage {
   return {
     id: 'welcome',
     role: 'bot',
-    text: isHindi(language)
+    text: isLanguageHindi(language)
       ? 'नमस्ते किसान मित्र! आप फसल, खाद, सिंचाई, मौसम और रोग नियंत्रण से जुड़े सवाल पूछ सकते हैं।'
       : 'Hello farmer! Ask me about crops, fertilizer, irrigation, weather, and pest control.',
   };
@@ -46,9 +48,9 @@ export function getFarmerChatbotReply({
   location,
   topCropNames,
 }: ReplyContext): string {
-  const hindi = isHindi(language);
+  const hindi = isLanguageHindi(language);
   const seasonLabel = SEASON_TEXT[season][hindi ? 'hi' : 'en'];
-  const suggestedCrops = topCropNames.length > 0 ? topCropNames.slice(0, 3).join(', ') : null;
+  const suggestedCrops = topCropNames.length > 0 ? topCropNames.slice(0, MAX_TOP_CROP_HINTS).join(', ') : null;
 
   if (hasKeyword(query, ['fertilizer', 'खाद', 'उर्वरक', 'npk'])) {
     return hindi

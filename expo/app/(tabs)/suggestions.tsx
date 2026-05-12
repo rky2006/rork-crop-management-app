@@ -28,6 +28,7 @@ import Colors from '@/constants/colors';
 
 const SOIL_TYPES: SoilType[] = ['clay', 'sandy', 'loamy', 'silt', 'red', 'black', 'alluvial', 'laterite'];
 const SEASONS: Season[] = ['kharif', 'rabi', 'zaid'];
+const MAX_CHAT_MESSAGES = 8;
 
 const SEASON_COLORS: Record<Season, string> = {
   kharif: '#16A34A',
@@ -194,7 +195,7 @@ export default function SuggestionsScreen() {
   });
 
   useSpeechRecognitionEvent('result', (event: ExpoSpeechRecognitionResultEvent) => {
-    const transcript = event.results[0]?.transcript?.trim();
+    const transcript = event.results.length > 0 ? event.results[0].transcript.trim() : '';
     if (transcript) {
       setChatInput(transcript);
     }
@@ -467,7 +468,7 @@ export default function SuggestionsScreen() {
         </View>
 
         <View style={styles.chatMessagesBox}>
-          {chatMessages.slice(-8).map(message => (
+          {chatMessages.slice(-MAX_CHAT_MESSAGES).map(message => (
             <View
               key={message.id}
               style={[
