@@ -12,19 +12,25 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn, isLoading } = useUser();
+  const { isLoggedIn, isLoading, language } = useUser();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
-    const inAuthGroup = segments[0] === 'login';
-    if (!isLoggedIn && !inAuthGroup) {
-      router.replace('/login');
-    } else if (isLoggedIn && inAuthGroup) {
+    const inLoginScreen = segments[0] === 'login';
+    const inLanguageScreen = segments[0] === 'language';
+
+    if (!isLoggedIn) {
+      if (!language && !inLanguageScreen) {
+        router.replace('/language');
+      } else if (language && !inLoginScreen) {
+        router.replace('/login');
+      }
+    } else if (isLoggedIn && (inLoginScreen || inLanguageScreen)) {
       router.replace('/(tabs)');
     }
-  }, [isLoggedIn, isLoading, segments, router]);
+  }, [isLoggedIn, isLoading, language, segments, router]);
 
   return <>{children}</>;
 }
@@ -38,6 +44,10 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="language"
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="login"
         options={{ headerShown: false }}

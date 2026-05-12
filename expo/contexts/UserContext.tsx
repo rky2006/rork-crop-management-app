@@ -4,19 +4,23 @@ import createContextHook from '@nkzw/create-context-hook';
 
 const USERNAME_KEY = 'aismartkheti_username';
 const LOCATION_KEY = 'aismartkheti_location';
+const LANGUAGE_KEY = 'aismartkheti_language';
 
 export const [UserProvider, useUser] = createContextHook(() => {
   const [username, setUsernameState] = useState<string | null>(null);
   const [location, setLocationState] = useState<string | null>(null);
+  const [language, setLanguageState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       AsyncStorage.getItem(USERNAME_KEY),
       AsyncStorage.getItem(LOCATION_KEY),
-    ]).then(([name, loc]) => {
+      AsyncStorage.getItem(LANGUAGE_KEY),
+    ]).then(([name, loc, lang]) => {
       setUsernameState(name);
       setLocationState(loc);
+      setLanguageState(lang);
       setIsLoading(false);
     });
   }, []);
@@ -32,6 +36,11 @@ export const [UserProvider, useUser] = createContextHook(() => {
     AsyncStorage.setItem(LOCATION_KEY, state);
   }, []);
 
+  const setLanguage = useCallback((lang: string) => {
+    setLanguageState(lang);
+    AsyncStorage.setItem(LANGUAGE_KEY, lang);
+  }, []);
+
   const logout = useCallback(() => {
     setUsernameState(null);
     AsyncStorage.removeItem(USERNAME_KEY);
@@ -40,10 +49,12 @@ export const [UserProvider, useUser] = createContextHook(() => {
   return {
     username,
     location,
+    language,
     isLoading,
     isLoggedIn: !!username,
     setUsername,
     setLocation,
+    setLanguage,
     logout,
   };
 });
