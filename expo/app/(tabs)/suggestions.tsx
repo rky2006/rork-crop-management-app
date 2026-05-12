@@ -264,7 +264,7 @@ export default function SuggestionsScreen() {
       }),
     };
 
-    setChatMessages(prev => [...prev, userMessage, botMessage]);
+    setChatMessages(prev => [...prev, userMessage, botMessage].slice(-MAX_CHAT_MESSAGES));
     setChatInput('');
   }, [chatInput, generateMessageId, language, season, location, topCropNames]);
 

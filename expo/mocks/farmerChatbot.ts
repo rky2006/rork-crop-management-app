@@ -21,6 +21,10 @@ const SEASON_TEXT: Record<Season, { en: string; hi: string }> = {
 };
 
 const MAX_TOP_CROP_HINTS = 3;
+const LOCATION_FALLBACK = {
+  en: 'your area',
+  hi: 'आपके क्षेत्र',
+};
 
 function isLanguageHindi(language: string | null): boolean {
   return language === 'hi';
@@ -77,9 +81,10 @@ export function getFarmerChatbotReply({
   }
 
   if (suggestedCrops) {
+    const locationText = location ?? LOCATION_FALLBACK[hindi ? 'hi' : 'en'];
     return hindi
-      ? `${location ?? 'आपके क्षेत्र'} में ${seasonLabel} सीजन के लिए ${suggestedCrops} अच्छे विकल्प लग रहे हैं। लागत और पानी की उपलब्धता देखकर चुनें।`
-      : `${suggestedCrops} look like strong options for ${seasonLabel} in ${location ?? 'your area'}. Choose based on your budget and water availability.`;
+      ? `${locationText} में ${seasonLabel} सीजन के लिए ${suggestedCrops} अच्छे विकल्प लग रहे हैं। लागत और पानी की उपलब्धता देखकर चुनें।`
+      : `${suggestedCrops} look like strong options for ${seasonLabel} in ${locationText}. Choose based on your budget and water availability.`;
   }
 
   return hindi
