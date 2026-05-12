@@ -1,10 +1,16 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator,
+  TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf } from 'lucide-react-native';
+import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf, MessageCircle, Mic, MicOff, Send } from 'lucide-react-native';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+  type ExpoSpeechRecognitionErrorEvent,
+  type ExpoSpeechRecognitionResultEvent,
+} from 'expo-speech-recognition';
 import { useUser } from '@/contexts/UserContext';
 import {
   CROP_PROFILES,
@@ -16,6 +22,7 @@ import {
   CropSuggestion,
   Season,
 } from '@/mocks/cropSuggestions';
+import { ChatMessage, createBotWelcomeMessage, getFarmerChatbotReply } from '@/mocks/farmerChatbot';
 import { SoilType, SOIL_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
 
@@ -120,7 +127,7 @@ function SuggestionCard({ suggestion }: { suggestion: CropSuggestion }) {
 }
 
 export default function SuggestionsScreen() {
-  const { location, setLocation } = useUser();
+  const { location, setLocation, language } = useUser();
 
   const detectedSeason = useMemo(() => getCurrentSeason(), []);
   const [season, setSeason] = useState<Season>(detectedSeason);
@@ -132,6 +139,10 @@ export default function SuggestionsScreen() {
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<CropSuggestion[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [createBotWelcomeMessage(language)]);
+  const [chatInput, setChatInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
 
   const selectedState = INDIAN_STATES.find(s => s.label === location) ?? null;
 
@@ -161,6 +172,94 @@ export default function SuggestionsScreen() {
 
   const topSuggestions = useMemo(() => suggestions.filter(s => s.score >= 40), [suggestions]);
   const otherSuggestions = useMemo(() => suggestions.filter(s => s.score < 40), [suggestions]);
+  const topCropNames = useMemo(() => topSuggestions.map(s => s.crop.name), [topSuggestions]);
+  const isHindi = language === 'hi';
+
+  useEffect(() => {
+    setChatMessages(prev => {
+      if (prev.length === 1 && prev[0].id === 'welcome') {
+        return [createBotWelcomeMessage(language)];
+      }
+      return prev;
+    });
+  }, [language]);
+
+  useSpeechRecognitionEvent('start', () => {
+    setIsListening(true);
+    setSpeechError(null);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    setIsListening(false);
+  });
+
+  useSpeechRecognitionEvent('result', (event: ExpoSpeechRecognitionResultEvent) => {
+    const transcript = event.results[0]?.transcript?.trim();
+    if (transcript) {
+      setChatInput(transcript);
+    }
+  });
+
+  useSpeechRecognitionEvent('error', (event: ExpoSpeechRecognitionErrorEvent) => {
+    setIsListening(false);
+    setSpeechError(event.message);
+  });
+
+  const handleStartListening = useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      setSpeechError(isHindi ? 'वॉइस इनपुट अभी केवल Android पर उपलब्ध है।' : 'Voice input is currently available on Android only.');
+      return;
+    }
+
+    if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
+      setSpeechError(isHindi ? 'आपके डिवाइस में स्पीच रिकग्निशन उपलब्ध नहीं है।' : 'Speech recognition is not available on this device.');
+      return;
+    }
+
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!permission.granted) {
+      setSpeechError(isHindi ? 'वॉइस उपयोग के लिए माइक्रोफोन अनुमति दें।' : 'Please grant microphone permission to use voice input.');
+      return;
+    }
+
+    setSpeechError(null);
+    ExpoSpeechRecognitionModule.start({
+      lang: isHindi ? 'hi-IN' : 'en-IN',
+      interimResults: true,
+      maxAlternatives: 1,
+      continuous: false,
+    });
+  }, [isHindi]);
+
+  const handleStopListening = useCallback(() => {
+    ExpoSpeechRecognitionModule.stop();
+  }, []);
+
+  const handleSendChatMessage = useCallback(() => {
+    const question = chatInput.trim();
+    if (!question) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      text: question,
+    };
+
+    const botMessage: ChatMessage = {
+      id: `bot-${Date.now()}`,
+      role: 'bot',
+      text: getFarmerChatbotReply({
+        query: question,
+        language,
+        season,
+        location,
+        topCropNames,
+      }),
+    };
+
+    setChatMessages(prev => [...prev, userMessage, botMessage]);
+    setChatInput('');
+  }, [chatInput, language, season, location, topCropNames]);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -355,6 +454,56 @@ export default function SuggestionsScreen() {
           )}
         </View>
       )}
+
+      <View style={styles.chatSection}>
+        <View style={styles.chatHeader}>
+          <MessageCircle size={18} color={Colors.primary} />
+          <View style={styles.chatHeaderText}>
+            <Text style={styles.chatTitle}>{isHindi ? 'किसान चैट सहायक' : 'Farmer Chat Assistant'}</Text>
+            <Text style={styles.chatSubtitle}>
+              {isHindi ? 'अपनी भाषा में सवाल पूछें और सुझाव पाएँ।' : 'Ask farming queries in your language and get suggestions.'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.chatMessagesBox}>
+          {chatMessages.slice(-8).map(message => (
+            <View
+              key={message.id}
+              style={[
+                styles.chatBubble,
+                message.role === 'user' ? styles.userBubble : styles.botBubble,
+              ]}
+            >
+              <Text style={[styles.chatBubbleText, message.role === 'user' && styles.userBubbleText]}>
+                {message.text}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.chatInputRow}>
+          <TextInput
+            style={styles.chatInput}
+            value={chatInput}
+            onChangeText={setChatInput}
+            placeholder={isHindi ? 'अपना सवाल लिखें...' : 'Type your farming question...'}
+            placeholderTextColor={Colors.textMuted}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+            onPress={isListening ? handleStopListening : handleStartListening}
+            activeOpacity={0.85}
+          >
+            {isListening ? <MicOff size={18} color="#fff" /> : <Mic size={18} color="#fff" />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sendButton} onPress={handleSendChatMessage} activeOpacity={0.85}>
+            <Send size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        {speechError ? <Text style={styles.speechErrorText}>{speechError}</Text> : null}
+      </View>
 
       <View style={{ height: 50 }} />
     </ScrollView>
@@ -748,5 +897,104 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500' as const,
     color: Colors.textSecondary,
+  },
+  chatSection: {
+    marginTop: 18,
+    marginHorizontal: 16,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 14,
+    gap: 10,
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chatHeaderText: {
+    flex: 1,
+  },
+  chatTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  chatSubtitle: {
+    marginTop: 1,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  chatMessagesBox: {
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 10,
+    gap: 8,
+  },
+  chatBubble: {
+    maxWidth: '92%',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  botBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.surfaceAlt,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: Colors.primary,
+  },
+  chatBubbleText: {
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 18,
+  },
+  userBubbleText: {
+    color: '#fff',
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  chatInput: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 96,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  voiceButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  voiceButtonActive: {
+    backgroundColor: Colors.warning,
+  },
+  sendButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+  },
+  speechErrorText: {
+    fontSize: 12,
+    color: Colors.warning,
   },
 });

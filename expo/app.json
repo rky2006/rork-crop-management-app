@@ -35,7 +35,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice queries.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to convert your speech to text for farmer assistance."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
