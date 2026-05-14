@@ -148,7 +148,7 @@ export default function SuggestionsScreen() {
   const messageIdCounterRef = useRef(0);
 
   const selectedState = INDIAN_STATES.find(s => s.label === location) ?? null;
-  const forecastData = selectedState ? REGION_WEATHER_FORECAST[selectedState.region] : WEATHER_FORECAST;
+  const forecastData = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
 
   const handleSelectState = useCallback((stateName: string) => {
     setLocation(stateName);
