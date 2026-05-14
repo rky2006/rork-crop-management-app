@@ -23,7 +23,7 @@ import {
   Season,
 } from '@/mocks/cropSuggestions';
 import { ChatMessage, createBotWelcomeMessage, getFarmerChatbotReply } from '@/mocks/farmerChatbot';
-import { ForecastDay, REGION_WEATHER_FORECAST } from '@/mocks/weatherForecast';
+import { ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from '@/mocks/weatherForecast';
 import { SoilType, SOIL_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
 
@@ -148,6 +148,7 @@ export default function SuggestionsScreen() {
   const messageIdCounterRef = useRef(0);
 
   const selectedState = INDIAN_STATES.find(s => s.label === location) ?? null;
+  const forecastData = selectedState ? REGION_WEATHER_FORECAST[selectedState.region] : WEATHER_FORECAST;
 
   const handleSelectState = useCallback((stateName: string) => {
     setLocation(stateName);
@@ -270,7 +271,13 @@ export default function SuggestionsScreen() {
   }, [chatInput, generateMessageId, language, season, location, topCropNames]);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.containerContent}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerIconBg}>
@@ -351,17 +358,20 @@ export default function SuggestionsScreen() {
         )}
       </View>
 
-      {/* Weather Forecast for selected location */}
-      {selectedState && !showStatePicker && (
+      {/* Weather Forecast */}
+      {!showStatePicker && (
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Cloud size={16} color={Colors.info} />
             <Text style={[styles.sectionTitle, { color: Colors.info }]}>
-              Weather Forecast · {location}
+              {selectedState ? `Weather Forecast · ${location}` : 'Weather Forecast'}
             </Text>
           </View>
+          {!selectedState && (
+            <Text style={styles.sectionHint}>Select your state to get region-specific forecast.</Text>
+          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.forecastScroll}>
-            {REGION_WEATHER_FORECAST[selectedState.region].map((item: ForecastDay) => (
+            {forecastData.map((item: ForecastDay) => (
               <View key={item.day} style={styles.forecastCard}>
                 <Text style={styles.forecastDay}>{item.day}</Text>
                 <Text style={styles.forecastCondition}>{item.condition}</Text>
@@ -546,7 +556,6 @@ export default function SuggestionsScreen() {
         {speechError ? <Text style={styles.speechErrorText}>{speechError}</Text> : null}
       </View>
 
-      <View style={{ height: 50 }} />
     </ScrollView>
   );
 }
@@ -555,6 +564,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  containerContent: {
+    paddingBottom: 50,
   },
   header: {
     flexDirection: 'row',
@@ -652,6 +664,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     fontWeight: '500' as const,
+    flex: 1,
+    paddingRight: 8,
   },
   stateList: {
     backgroundColor: Colors.surface,
