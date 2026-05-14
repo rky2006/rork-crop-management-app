@@ -2,15 +2,15 @@ import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { CloudDrizzle, CloudSun, Sun, Wind } from "lucide-react-native";
 import Colors from "@/constants/colors";
-
-const FORECAST = [
-  { day: "Today", condition: "Partly Cloudy", temp: "31° / 24°", rain: "20%", wind: "11 km/h" },
-  { day: "Tomorrow", condition: "Light Rain", temp: "29° / 23°", rain: "60%", wind: "16 km/h" },
-  { day: "Sunday", condition: "Sunny", temp: "33° / 25°", rain: "5%", wind: "9 km/h" },
-  { day: "Monday", condition: "Cloudy", temp: "30° / 24°", rain: "30%", wind: "12 km/h" },
-];
+import { WEATHER_FORECAST } from "@/mocks/weatherForecast";
 
 export default function WeatherScreen() {
+  const highestRainDay = WEATHER_FORECAST.reduce((max, day) => (day.rain > max.rain ? day : max), WEATHER_FORECAST[0]);
+  const tipMessage =
+    highestRainDay.rain >= 50
+      ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
+      : `No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.`;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
@@ -21,7 +21,7 @@ export default function WeatherScreen() {
         </View>
       </View>
 
-      {FORECAST.map((item) => (
+      {WEATHER_FORECAST.map((item) => (
         <View key={item.day} style={styles.card}>
           <View style={styles.dayRow}>
             <Text style={styles.day}>{item.day}</Text>
@@ -31,7 +31,7 @@ export default function WeatherScreen() {
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <CloudDrizzle size={16} color={Colors.info} />
-              <Text style={styles.metaText}>Rain: {item.rain}</Text>
+              <Text style={styles.metaText}>Rain: {item.rain}%</Text>
             </View>
             <View style={styles.metaItem}>
               <Wind size={16} color={Colors.textSecondary} />
@@ -47,7 +47,7 @@ export default function WeatherScreen() {
           <Text style={styles.tipTitle}>Field Tip</Text>
         </View>
         <Text style={styles.tipText}>
-          Rain chances are higher tomorrow. Consider postponing irrigation and keep harvested produce covered.
+          {tipMessage}
         </Text>
       </View>
     </ScrollView>
