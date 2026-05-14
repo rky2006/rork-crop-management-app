@@ -31,16 +31,16 @@ export interface IndianState {
 }
 
 export const INDIAN_STATES: IndianState[] = [
+  // States
   { label: 'Andhra Pradesh', region: 'peninsular' },
+  { label: 'Arunachal Pradesh', region: 'hilly' },
   { label: 'Assam', region: 'hilly' },
   { label: 'Bihar', region: 'northern_plains' },
   { label: 'Chhattisgarh', region: 'central' },
-  { label: 'Delhi', region: 'northern_plains' },
   { label: 'Goa', region: 'peninsular' },
   { label: 'Gujarat', region: 'northwest' },
   { label: 'Haryana', region: 'northern_plains' },
   { label: 'Himachal Pradesh', region: 'hilly' },
-  { label: 'Jammu & Kashmir', region: 'hilly' },
   { label: 'Jharkhand', region: 'eastern' },
   { label: 'Karnataka', region: 'peninsular' },
   { label: 'Kerala', region: 'peninsular' },
@@ -48,16 +48,27 @@ export const INDIAN_STATES: IndianState[] = [
   { label: 'Maharashtra', region: 'central' },
   { label: 'Manipur', region: 'hilly' },
   { label: 'Meghalaya', region: 'hilly' },
+  { label: 'Mizoram', region: 'hilly' },
   { label: 'Nagaland', region: 'hilly' },
   { label: 'Odisha', region: 'eastern' },
   { label: 'Punjab', region: 'northern_plains' },
   { label: 'Rajasthan', region: 'northwest' },
+  { label: 'Sikkim', region: 'hilly' },
   { label: 'Tamil Nadu', region: 'peninsular' },
   { label: 'Telangana', region: 'peninsular' },
   { label: 'Tripura', region: 'hilly' },
   { label: 'Uttar Pradesh', region: 'northern_plains' },
   { label: 'Uttarakhand', region: 'hilly' },
   { label: 'West Bengal', region: 'eastern' },
+  // Union Territories
+  { label: 'Andaman & Nicobar Islands', region: 'hilly' },
+  { label: 'Chandigarh', region: 'northern_plains' },
+  { label: 'Dadra & Nagar Haveli and Daman & Diu', region: 'peninsular' },
+  { label: 'Delhi', region: 'northern_plains' },
+  { label: 'Jammu & Kashmir', region: 'hilly' },
+  { label: 'Ladakh', region: 'hilly' },
+  { label: 'Lakshadweep', region: 'peninsular' },
+  { label: 'Puducherry', region: 'peninsular' },
 ];
 
 export interface CropProfile {
