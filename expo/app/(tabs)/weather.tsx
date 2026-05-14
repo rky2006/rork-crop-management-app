@@ -125,12 +125,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   tipCard: {
-    backgroundColor: "#FFF8E8",
+    backgroundColor: Colors.warningBg,
     borderRadius: 12,
     padding: 14,
     marginTop: 4,
     borderWidth: 1,
-    borderColor: "#F3DFC2",
+    borderColor: Colors.warningBorder,
     gap: 6,
   },
   tipTitleRow: {

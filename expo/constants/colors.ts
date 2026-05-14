@@ -15,6 +15,8 @@ export default {
   danger: '#DC2626',
   success: '#059669',
   warning: '#D97706',
+  warningBg: '#FFF8E8',
+  warningBorder: '#F3DFC2',
   info: '#0284C7',
   cardShadow: 'rgba(0,0,0,0.06)',
   overlay: 'rgba(0,0,0,0.4)',
