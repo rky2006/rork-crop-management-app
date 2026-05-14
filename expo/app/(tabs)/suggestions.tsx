@@ -4,7 +4,7 @@ import {
   TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf, MessageCircle, Mic, MicOff, Send } from 'lucide-react-native';
+import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf, MessageCircle, Mic, MicOff, Send, CloudDrizzle, Wind } from 'lucide-react-native';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -23,6 +23,7 @@ import {
   Season,
 } from '@/mocks/cropSuggestions';
 import { ChatMessage, createBotWelcomeMessage, getFarmerChatbotReply } from '@/mocks/farmerChatbot';
+import { ForecastDay, REGION_WEATHER_FORECAST } from '@/mocks/weatherForecast';
 import { SoilType, SOIL_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
 
@@ -325,7 +326,11 @@ export default function SuggestionsScreen() {
         </TouchableOpacity>
 
         {showStatePicker && (
-          <View style={styles.stateList}>
+          <ScrollView
+            style={styles.stateList}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+          >
             {INDIAN_STATES.map(s => (
               <TouchableOpacity
                 key={s.label}
@@ -342,9 +347,38 @@ export default function SuggestionsScreen() {
                 </View>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
+
+      {/* Weather Forecast for selected location */}
+      {selectedState && !showStatePicker && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Cloud size={16} color={Colors.info} />
+            <Text style={[styles.sectionTitle, { color: Colors.info }]}>
+              Weather Forecast · {location}
+            </Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.forecastScroll}>
+            {REGION_WEATHER_FORECAST[selectedState.region].map((item: ForecastDay) => (
+              <View key={item.day} style={styles.forecastCard}>
+                <Text style={styles.forecastDay}>{item.day}</Text>
+                <Text style={styles.forecastCondition}>{item.condition}</Text>
+                <Text style={styles.forecastTemp}>{item.temp}</Text>
+                <View style={styles.forecastMeta}>
+                  <CloudDrizzle size={12} color={Colors.info} />
+                  <Text style={styles.forecastMetaText}>{item.rain}%</Text>
+                </View>
+                <View style={styles.forecastMeta}>
+                  <Wind size={12} color={Colors.textMuted} />
+                  <Text style={styles.forecastMetaText}>{item.wind}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Soil Profile Section */}
       <View style={styles.section}>
@@ -626,7 +660,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginTop: 6,
     maxHeight: 280,
-    overflow: 'hidden',
   },
   stateItem: {
     flexDirection: 'row',
@@ -651,6 +684,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 1,
+  },
+  forecastScroll: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  forecastCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    minWidth: 110,
+    gap: 4,
+    alignItems: 'center',
+  },
+  forecastDay: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  forecastCondition: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textAlign: 'center' as const,
+    lineHeight: 15,
+  },
+  forecastTemp: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+    marginTop: 2,
+  },
+  forecastMeta: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
+  },
+  forecastMetaText: {
+    fontSize: 11,
+    color: Colors.textMuted,
   },
   fieldLabel: {
     fontSize: 13,
