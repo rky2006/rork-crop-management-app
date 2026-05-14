@@ -664,8 +664,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     fontWeight: '500' as const,
-    flex: 1,
-    paddingRight: 8,
   },
   stateList: {
     backgroundColor: Colors.surface,
