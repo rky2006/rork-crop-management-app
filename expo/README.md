@@ -143,7 +143,7 @@ For detailed instructions, visit [Expo's App Store deployment guide](https://doc
    eas submit --platform android
    ```
 
-For GitHub Actions or any other `--non-interactive` Android release build, generate or export the keystore outside CI first, then store these repository secrets before running the production workflow:
+For GitHub Actions or any other `--non-interactive` Android release build, generate or export the keystore outside CI first. Store these repository secrets before running the production workflow:
 
 - `ANDROID_KEYSTORE_BASE64` - base64-encoded `.jks` file contents
 - `ANDROID_KEYSTORE_PASSWORD`
