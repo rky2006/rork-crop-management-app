@@ -98,3 +98,7 @@ jobs:
 
       - name: Build Android AAB for production
         run: eas build --platform android --profile production-ci --non-interactive
+
+      - name: Remove Android signing material
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/expo/credentials.json" "$GITHUB_WORKSPACE/expo/.eas/android-upload-keystore.jks"
