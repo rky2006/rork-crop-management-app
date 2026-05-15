@@ -82,18 +82,25 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
           chmod 600 "$keystore_path"
 
-          cat > "$credentials_path" <<EOF
-          {
-            "android": {
-              "keystore": {
-                "keystorePath": "$keystore_path",
-                "keystorePassword": "$ANDROID_KEYSTORE_PASSWORD",
-                "keyAlias": "$ANDROID_KEY_ALIAS",
-                "keyPassword": "$ANDROID_KEY_PASSWORD"
-              }
-            }
-          }
-          EOF
+          CREDENTIALS_PATH="$credentials_path" KEYSTORE_PATH="$keystore_path" python - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["CREDENTIALS_PATH"], "w", encoding="utf-8") as credentials_file:
+              json.dump(
+                  {
+                      "android": {
+                          "keystore": {
+                              "keystorePath": os.environ["KEYSTORE_PATH"],
+                              "keystorePassword": os.environ["ANDROID_KEYSTORE_PASSWORD"],
+                              "keyAlias": os.environ["ANDROID_KEY_ALIAS"],
+                              "keyPassword": os.environ["ANDROID_KEY_PASSWORD"],
+                          }
+                      }
+                  },
+                  credentials_file,
+              )
+          PY
           chmod 600 "$credentials_path"
 
       - name: Build Android AAB for production
