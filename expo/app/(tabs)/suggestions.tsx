@@ -26,6 +26,7 @@ import { ChatMessage, createBotWelcomeMessage, getFarmerChatbotReply } from '@/m
 import { ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from '@/mocks/weatherForecast';
 import { SoilType, SOIL_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
+import { SPEECH_LANGUAGE_LOCALE, getSupportedLanguage } from '@/constants/languages';
 
 const SOIL_TYPES: SoilType[] = ['clay', 'sandy', 'loamy', 'silt', 'red', 'black', 'alluvial', 'laterite'];
 const SEASONS: Season[] = ['kharif', 'rabi', 'zaid'];
@@ -36,6 +37,41 @@ const SEASON_COLORS: Record<Season, string> = {
   rabi: '#0284C7',
   zaid: '#D97706',
 };
+
+const CHAT_COPY = {
+  en: {
+    androidOnly: 'Voice input is currently available on Android only.',
+    unavailable: 'Speech recognition is not available on this device.',
+    permission: 'Please grant microphone permission to use voice input.',
+    title: 'Farmer Chat Assistant',
+    subtitle: 'Ask farming queries in your language and get suggestions.',
+    placeholder: 'Type your farming question...',
+  },
+  hi: {
+    androidOnly: 'वॉइस इनपुट अभी केवल Android पर उपलब्ध है।',
+    unavailable: 'आपके डिवाइस में स्पीच रिकग्निशन उपलब्ध नहीं है।',
+    permission: 'वॉइस उपयोग के लिए माइक्रोफोन अनुमति दें।',
+    title: 'किसान चैट सहायक',
+    subtitle: 'अपनी भाषा में सवाल पूछें और सुझाव पाएँ।',
+    placeholder: 'अपना सवाल लिखें...',
+  },
+  gu: {
+    androidOnly: 'વૉઇસ ઇનપુટ હાલમાં માત્ર Android પર ઉપલબ્ધ છે.',
+    unavailable: 'તમારા ઉપકરણમાં સ્પીચ રિકગ્નિશન ઉપલબ્ધ નથી.',
+    permission: 'વૉઇસ ઇનપુટ માટે કૃપા કરીને માઇક્રોફોનની પરવાનગી આપો.',
+    title: 'ખેડૂત ચેટ સહાયક',
+    subtitle: 'તમારી ભાષામાં પ્રશ્ન પૂછો અને સૂચનો મેળવો.',
+    placeholder: 'તમારો ખેતી સંબંધિત પ્રશ્ન લખો...',
+  },
+  mr: {
+    androidOnly: 'व्हॉइस इनपुट सध्या फक्त Android वर उपलब्ध आहे.',
+    unavailable: 'तुमच्या डिव्हाइसवर स्पीच रेकग्निशन उपलब्ध नाही.',
+    permission: 'व्हॉइस इनपुटसाठी कृपया मायक्रोफोनची परवानगी द्या.',
+    title: 'शेतकरी चॅट सहाय्यक',
+    subtitle: 'तुमच्या भाषेत प्रश्न विचारा आणि सूचना मिळवा.',
+    placeholder: 'तुमचा शेतीविषयक प्रश्न लिहा...',
+  },
+} as const;
 
 function getScoreColor(score: number): string {
   if (score >= 75) return '#16A34A';
@@ -177,7 +213,8 @@ export default function SuggestionsScreen() {
   const topSuggestions = useMemo(() => suggestions.filter(s => s.score >= 40), [suggestions]);
   const otherSuggestions = useMemo(() => suggestions.filter(s => s.score < 40), [suggestions]);
   const topCropNames = useMemo(() => topSuggestions.map(s => s.crop.name), [topSuggestions]);
-  const isHindi = language === 'hi';
+  const activeLanguage = getSupportedLanguage(language);
+  const chatCopy = CHAT_COPY[activeLanguage];
 
   useEffect(() => {
     setChatMessages(prev => {
@@ -211,29 +248,29 @@ export default function SuggestionsScreen() {
 
   const handleStartListening = useCallback(async () => {
     if (Platform.OS !== 'android') {
-      setSpeechError(isHindi ? 'वॉइस इनपुट अभी केवल Android पर उपलब्ध है।' : 'Voice input is currently available on Android only.');
+      setSpeechError(chatCopy.androidOnly);
       return;
     }
 
     if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
-      setSpeechError(isHindi ? 'आपके डिवाइस में स्पीच रिकग्निशन उपलब्ध नहीं है।' : 'Speech recognition is not available on this device.');
+      setSpeechError(chatCopy.unavailable);
       return;
     }
 
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!permission.granted) {
-      setSpeechError(isHindi ? 'वॉइस उपयोग के लिए माइक्रोफोन अनुमति दें।' : 'Please grant microphone permission to use voice input.');
+      setSpeechError(chatCopy.permission);
       return;
     }
 
     setSpeechError(null);
     ExpoSpeechRecognitionModule.start({
-      lang: isHindi ? 'hi-IN' : 'en-IN',
+      lang: SPEECH_LANGUAGE_LOCALE[activeLanguage],
       interimResults: true,
       maxAlternatives: 1,
       continuous: false,
     });
-  }, [isHindi]);
+  }, [activeLanguage, chatCopy.androidOnly, chatCopy.permission, chatCopy.unavailable]);
 
   const handleStopListening = useCallback(() => {
     ExpoSpeechRecognitionModule.stop();
@@ -510,10 +547,8 @@ export default function SuggestionsScreen() {
         <View style={styles.chatHeader}>
           <MessageCircle size={18} color={Colors.primary} />
           <View style={styles.chatHeaderText}>
-            <Text style={styles.chatTitle}>{isHindi ? 'किसान चैट सहायक' : 'Farmer Chat Assistant'}</Text>
-            <Text style={styles.chatSubtitle}>
-              {isHindi ? 'अपनी भाषा में सवाल पूछें और सुझाव पाएँ।' : 'Ask farming queries in your language and get suggestions.'}
-            </Text>
+            <Text style={styles.chatTitle}>{chatCopy.title}</Text>
+            <Text style={styles.chatSubtitle}>{chatCopy.subtitle}</Text>
           </View>
         </View>
 
@@ -538,7 +573,7 @@ export default function SuggestionsScreen() {
             style={styles.chatInput}
             value={chatInput}
             onChangeText={setChatInput}
-            placeholder={isHindi ? 'अपना सवाल लिखें...' : 'Type your farming question...'}
+            placeholder={chatCopy.placeholder}
             placeholderTextColor={Colors.textMuted}
             multiline
           />
