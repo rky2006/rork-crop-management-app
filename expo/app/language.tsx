@@ -11,16 +11,37 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Check, Languages } from 'lucide-react-native';
 import { useUser } from '@/contexts/UserContext';
 import Colors from '@/constants/colors';
+import { LANGUAGE_OPTIONS, getSupportedLanguage } from '@/constants/languages';
 
-const LANGUAGE_OPTIONS = [
-  { code: 'en', name: 'English', subtitle: 'Continue in English' },
-  { code: 'hi', name: 'हिंदी', subtitle: 'हिंदी में आगे बढ़ें' },
-];
+const LANGUAGE_SCREEN_COPY = {
+  en: {
+    title: 'Choose Language',
+    subtitle: 'Select your preferred language before login',
+    continue: 'Continue',
+  },
+  hi: {
+    title: 'भाषा चुनें',
+    subtitle: 'लॉगिन से पहले अपनी पसंदीदा भाषा चुनें',
+    continue: 'आगे बढ़ें',
+  },
+  gu: {
+    title: 'ભાષા પસંદ કરો',
+    subtitle: 'લૉગિન પહેલાં તમારી પસંદની ભાષા પસંદ કરો',
+    continue: 'આગળ વધો',
+  },
+  mr: {
+    title: 'भाषा निवडा',
+    subtitle: 'लॉगिनपूर्वी आपली पसंतीची भाषा निवडा',
+    continue: 'पुढे जा',
+  },
+} as const;
 
 export default function LanguageSelectionScreen() {
   const router = useRouter();
   const { language, setLanguage } = useUser();
   const [selectedLanguage, setSelectedLanguage] = useState(language ?? '');
+  const activeLanguage = getSupportedLanguage(selectedLanguage || language);
+  const copy = LANGUAGE_SCREEN_COPY[activeLanguage];
 
   const canContinue = useMemo(() => !!selectedLanguage, [selectedLanguage]);
 
@@ -42,8 +63,8 @@ export default function LanguageSelectionScreen() {
         <View style={styles.iconContainer}>
           <Languages size={42} color="#fff" />
         </View>
-        <Text style={styles.title}>Choose Language</Text>
-        <Text style={styles.subtitle}>अपनी भाषा चुनें</Text>
+        <Text style={styles.title}>{copy.title}</Text>
+        <Text style={styles.subtitle}>{copy.subtitle}</Text>
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -72,7 +93,7 @@ export default function LanguageSelectionScreen() {
             disabled={!canContinue}
             activeOpacity={0.85}
           >
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={styles.continueButtonText}>{copy.continue}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

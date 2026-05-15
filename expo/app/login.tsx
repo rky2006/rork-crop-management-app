@@ -10,15 +10,66 @@ import {
   ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Sprout, ArrowRight } from 'lucide-react-native';
+import { Sprout, ArrowRight, Languages } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser } from '@/contexts/UserContext';
 import Colors from '@/constants/colors';
+import { LANGUAGE_OPTIONS, getSupportedLanguage } from '@/constants/languages';
+
+const LOGIN_COPY = {
+  en: {
+    tagline: 'Smart Crop Management for Every Farmer',
+    welcome: 'Welcome!',
+    subtitle: 'Enter your name to get started',
+    selectedLanguage: 'Selected language',
+    changeLanguage: 'Change language',
+    inputLabel: 'Your Name',
+    placeholder: 'e.g. Ram Singh',
+    button: 'Get Started',
+    hint: 'Manage your crops from sowing to harvest with AI-powered suggestions',
+  },
+  hi: {
+    tagline: 'हर किसान के लिए स्मार्ट फसल प्रबंधन',
+    welcome: 'स्वागत है!',
+    subtitle: 'शुरू करने के लिए अपना नाम दर्ज करें',
+    selectedLanguage: 'चुनी गई भाषा',
+    changeLanguage: 'भाषा बदलें',
+    inputLabel: 'आपका नाम',
+    placeholder: 'जैसे राम सिंह',
+    button: 'शुरू करें',
+    hint: 'बुवाई से कटाई तक अपनी फसलों को AI आधारित सुझावों के साथ संभालें',
+  },
+  gu: {
+    tagline: 'દરેક ખેડૂત માટે સ્માર્ટ પાક વ્યવસ્થાપન',
+    welcome: 'સ્વાગત છે!',
+    subtitle: 'શરૂ કરવા માટે તમારું નામ દાખલ કરો',
+    selectedLanguage: 'પસંદ કરેલી ભાષા',
+    changeLanguage: 'ભાષા બદલો',
+    inputLabel: 'તમારું નામ',
+    placeholder: 'દા.ત. રમેશભાઈ પટેલ',
+    button: 'શરૂ કરો',
+    hint: 'વાવેતરથી લઈ કાપણી સુધી તમારા પાકનું AI આધારિત સૂચનો સાથે સંચાલન કરો',
+  },
+  mr: {
+    tagline: 'प्रत्येक शेतकऱ्यासाठी स्मार्ट पीक व्यवस्थापन',
+    welcome: 'स्वागत आहे!',
+    subtitle: 'सुरू करण्यासाठी आपले नाव टाका',
+    selectedLanguage: 'निवडलेली भाषा',
+    changeLanguage: 'भाषा बदला',
+    inputLabel: 'आपले नाव',
+    placeholder: 'उदा. राम पाटील',
+    button: 'सुरू करा',
+    hint: 'पेरणीपासून कापणीपर्यंत AI-आधारित सूचनांसह आपल्या पिकांचे व्यवस्थापन करा',
+  },
+} as const;
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setUsername } = useUser();
+  const { setUsername, language } = useUser();
   const [name, setName] = useState('');
+  const activeLanguage = getSupportedLanguage(language);
+  const copy = LOGIN_COPY[activeLanguage];
+  const selectedLanguageName = LANGUAGE_OPTIONS.find(option => option.code === activeLanguage)?.name ?? 'English';
 
   const handleLogin = useCallback(() => {
     if (!name.trim()) return;
@@ -47,20 +98,33 @@ export default function LoginScreen() {
             <Sprout size={48} color="#fff" />
           </View>
           <Text style={styles.appName}>AISmartKisan</Text>
-          <Text style={styles.tagline}>Smart Crop Management for Every Farmer</Text>
+          <Text style={styles.tagline}>{copy.tagline}</Text>
         </LinearGradient>
 
         <View style={styles.formCard}>
-          <Text style={styles.welcomeText}>Welcome!</Text>
-          <Text style={styles.subtitle}>Enter your name to get started</Text>
+          <Text style={styles.welcomeText}>{copy.welcome}</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
+
+          <View style={styles.languageRow}>
+            <View style={styles.languageBadge}>
+              <Languages size={16} color={Colors.primary} />
+              <View>
+                <Text style={styles.languageLabel}>{copy.selectedLanguage}</Text>
+                <Text style={styles.languageValue}>{selectedLanguageName}</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/language')} activeOpacity={0.85}>
+              <Text style={styles.languageAction}>{copy.changeLanguage}</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Your Name</Text>
+            <Text style={styles.inputLabel}>{copy.inputLabel}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Ram Singh"
+              placeholder={copy.placeholder}
               placeholderTextColor={Colors.textMuted}
               autoCapitalize="words"
               autoFocus
@@ -75,12 +139,12 @@ export default function LoginScreen() {
             activeOpacity={0.85}
             disabled={!name.trim()}
           >
-            <Text style={styles.loginButtonText}>Get Started</Text>
+            <Text style={styles.loginButtonText}>{copy.button}</Text>
             <ArrowRight size={20} color="#fff" />
           </TouchableOpacity>
 
           <Text style={styles.hint}>
-            Manage your crops from sowing to harvest with AI-powered suggestions
+            {copy.hint}
           </Text>
         </View>
       </ScrollView>
@@ -152,6 +216,40 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     marginBottom: 20,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  languageBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Colors.background,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  languageLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  languageValue: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginTop: 2,
+  },
+  languageAction: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
   inputLabel: {
     fontSize: 13,
