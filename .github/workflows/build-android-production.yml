@@ -36,9 +36,12 @@ jobs:
 
       - name: Initialize EAS project for CI
         run: |
+          set -euo pipefail
           if [ -n "${{ secrets.EAS_PROJECT_ID }}" ]; then
+            # Preferred path: explicitly link the known EAS project.
             eas init --id "${{ secrets.EAS_PROJECT_ID }}" --non-interactive
           else
+            # Fallback: create/link using app slug + EXPO_TOKEN account when project ID is not provided.
             eas init --non-interactive
           fi
 
