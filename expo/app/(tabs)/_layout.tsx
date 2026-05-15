@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { LayoutDashboard, Wheat, ClipboardList, ScanLine, Lightbulb, Cloud } from "lucide-react-native";
+import { LayoutDashboard, Wheat, ClipboardList, ScanLine, Lightbulb } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -58,8 +58,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="weather"
         options={{
-          title: "Weather",
-          tabBarIcon: ({ color, size }) => <Cloud size={size} color={color} />,
+          href: null,
         }}
       />
     </Tabs>
