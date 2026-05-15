@@ -73,16 +73,20 @@ jobs:
             exit 1
           fi
 
-          mkdir -p .eas
-          umask 077
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > .eas/android-upload-keystore.jks
-          chmod 600 .eas/android-upload-keystore.jks
+          project_dir="$GITHUB_WORKSPACE/expo"
+          keystore_path="$project_dir/.eas/android-upload-keystore.jks"
+          credentials_path="$project_dir/credentials.json"
 
-          cat > credentials.json <<EOF
+          mkdir -p "$project_dir/.eas"
+          umask 077
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          chmod 600 "$keystore_path"
+
+          cat > "$credentials_path" <<EOF
           {
             "android": {
               "keystore": {
-                "keystorePath": ".eas/android-upload-keystore.jks",
+                "keystorePath": "$keystore_path",
                 "keystorePassword": "$ANDROID_KEYSTORE_PASSWORD",
                 "keyAlias": "$ANDROID_KEY_ALIAS",
                 "keyPassword": "$ANDROID_KEY_PASSWORD"
@@ -90,6 +94,7 @@ jobs:
             }
           }
           EOF
+          chmod 600 "$credentials_path"
 
       - name: Build Android AAB for production
         run: eas build --platform android --profile production-ci --non-interactive
