@@ -41,7 +41,7 @@ jobs:
             eas init --id "$EAS_PROJECT_ID" --non-interactive
           else
             # Fallback: create/link using app slug + EXPO_TOKEN account when project ID is not provided.
-            eas init --non-interactive
+            eas init --non-interactive --force
           fi
 
       - name: Build Android AAB for production
