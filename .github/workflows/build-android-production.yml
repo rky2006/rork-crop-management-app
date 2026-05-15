@@ -74,7 +74,9 @@ jobs:
           fi
 
           mkdir -p .eas
+          umask 077
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > .eas/android-upload-keystore.jks
+          chmod 600 .eas/android-upload-keystore.jks
 
           cat > credentials.json <<EOF
           {
