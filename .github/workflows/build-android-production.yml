@@ -44,5 +44,50 @@ jobs:
             eas init --non-interactive --force
           fi
 
+      - name: Prepare Android signing credentials for CI
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          required_vars=(
+            ANDROID_KEYSTORE_BASE64
+            ANDROID_KEYSTORE_PASSWORD
+            ANDROID_KEY_ALIAS
+            ANDROID_KEY_PASSWORD
+          )
+
+          missing_vars=()
+          for var_name in "${required_vars[@]}"; do
+            if [ -z "${!var_name:-}" ]; then
+              missing_vars+=("$var_name")
+            fi
+          done
+
+          if [ "${#missing_vars[@]}" -gt 0 ]; then
+            echo "Missing required Android signing secrets: ${missing_vars[*]}" >&2
+            echo "Create or export the Android keystore outside CI, then add these secrets before running the workflow." >&2
+            exit 1
+          fi
+
+          mkdir -p .eas
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > .eas/android-upload-keystore.jks
+
+          cat > credentials.json <<EOF
+          {
+            "android": {
+              "keystore": {
+                "keystorePath": ".eas/android-upload-keystore.jks",
+                "keystorePassword": "$ANDROID_KEYSTORE_PASSWORD",
+                "keyAlias": "$ANDROID_KEY_ALIAS",
+                "keyPassword": "$ANDROID_KEY_PASSWORD"
+              }
+            }
+          }
+          EOF
+
       - name: Build Android AAB for production
-        run: eas build --platform android --profile production --non-interactive
+        run: eas build --platform android --profile production-ci --non-interactive
