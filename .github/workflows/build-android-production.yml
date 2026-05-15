@@ -35,11 +35,13 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Initialize EAS project for CI
+        env:
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ -n "${{ secrets.EAS_PROJECT_ID }}" ]; then
+          if [ -n "$EAS_PROJECT_ID" ]; then
             # Preferred path: explicitly link the known EAS project.
-            eas init --id "${{ secrets.EAS_PROJECT_ID }}" --non-interactive
+            eas init --id "$EAS_PROJECT_ID" --non-interactive
           else
             # Fallback: create/link using app slug + EXPO_TOKEN account when project ID is not provided.
             eas init --non-interactive
