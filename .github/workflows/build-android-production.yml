@@ -44,5 +44,78 @@ jobs:
             eas init --non-interactive --force
           fi
 
+      - name: Prepare Android signing credentials for CI
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          required_vars=(
+            ANDROID_KEYSTORE_BASE64
+            ANDROID_KEYSTORE_PASSWORD
+            ANDROID_KEY_ALIAS
+            ANDROID_KEY_PASSWORD
+          )
+
+          missing_vars=()
+          for var_name in "${required_vars[@]}"; do
+            if [ -z "${!var_name:-}" ]; then
+              missing_vars+=("$var_name")
+            fi
+          done
+
+          if [ "${#missing_vars[@]}" -gt 0 ]; then
+            echo "Missing required Android signing secrets: ${missing_vars[*]}" >&2
+            echo "Create or export the Android keystore outside CI, then add these secrets before running the workflow." >&2
+            exit 1
+          fi
+
+          project_dir="$GITHUB_WORKSPACE/expo"
+          keystore_path="$project_dir/.eas/android-upload-keystore.jks"
+          credentials_path="$project_dir/credentials.json"
+
+          mkdir -p "$project_dir/.eas"
+          umask 077
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          chmod 600 "$keystore_path"
+
+          CREDENTIALS_PATH="$credentials_path" \
+          KEYSTORE_PATH="$keystore_path" \
+          ANDROID_KEYSTORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD" \
+          ANDROID_KEY_ALIAS="$ANDROID_KEY_ALIAS" \
+          ANDROID_KEY_PASSWORD="$ANDROID_KEY_PASSWORD" \
+          python - <<'PY'
+          import json
+          import os
+
+          with open(os.environ["CREDENTIALS_PATH"], "w", encoding="utf-8") as credentials_file:
+              json.dump(
+                  {
+                      "android": {
+                          "keystore": {
+                              "keystorePath": os.environ["KEYSTORE_PATH"],
+                              "keystorePassword": os.environ["ANDROID_KEYSTORE_PASSWORD"],
+                              "keyAlias": os.environ["ANDROID_KEY_ALIAS"],
+                              "keyPassword": os.environ["ANDROID_KEY_PASSWORD"],
+                          }
+                      }
+                  },
+                  credentials_file,
+              )
+          PY
+          chmod 600 "$credentials_path"
+
       - name: Build Android AAB for production
-        run: eas build --platform android --profile production --non-interactive
+        run: eas build --platform android --profile production-ci --non-interactive
+
+      - name: Remove Android signing material
+        if: always()
+        run: |
+          for path in "$GITHUB_WORKSPACE/expo/credentials.json" "$GITHUB_WORKSPACE/expo/.eas/android-upload-keystore.jks"; do
+            if [ -f "$path" ]; then
+              shred -u "$path" || rm -f "$path"
+            fi
+          done

@@ -143,6 +143,17 @@ For detailed instructions, visit [Expo's App Store deployment guide](https://doc
    eas submit --platform android
    ```
 
+For GitHub Actions or any other `--non-interactive` Android release build, generate or export the keystore outside CI first. Store these repository secrets before running the production workflow:
+
+- `ANDROID_KEYSTORE_BASE64` - base64-encoded `.jks` file contents
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `EXPO_TOKEN`
+- `EAS_PROJECT_ID` (recommended)
+
+Without pre-provisioned signing credentials, EAS cannot create a new Android keystore in non-interactive mode and the build will fail.
+
 For detailed instructions, visit [Expo's Google Play deployment guide](https://docs.expo.dev/submit/android/).
 
 ### **Publish as a Website**

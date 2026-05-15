@@ -8,6 +8,12 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "production-ci": {
+      "extends": "production",
+      "android": {
+        "credentialsSource": "local"
+      }
     }
   },
   "submit": {
