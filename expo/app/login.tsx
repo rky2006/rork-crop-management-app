@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -70,12 +70,6 @@ export default function LoginScreen() {
   const activeLanguage = getSupportedLanguage(language);
   const copy = LOGIN_COPY[activeLanguage];
   const selectedLanguageName = LANGUAGE_OPTIONS.find(option => option.code === activeLanguage)?.name ?? 'English';
-
-  useEffect(() => {
-    if (!language) {
-      router.replace('/language');
-    }
-  }, [language, router]);
 
   const handleLogin = useCallback(() => {
     if (!name.trim()) return;

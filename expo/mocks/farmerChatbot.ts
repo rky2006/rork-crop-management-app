@@ -83,7 +83,14 @@ const CHATBOT_COPY: Record<
   },
 };
 
-function hasKeyword(query: string, keywords: string[]): boolean {
+const KEYWORDS_BY_TOPIC = {
+  fertilizer: ['fertilizer', 'खाद', 'उर्वरक', 'ખાતર', 'खत', 'npk'],
+  irrigation: ['water', 'irrigation', 'सिंचाई', 'પાણી', 'સિંચાઈ', 'पाणी', 'सिंचन'],
+  pest: ['disease', 'pest', 'कीट', 'रोग', 'જીવાત', 'રોગ', 'कीड'],
+  weather: ['weather', 'rain', 'मौसम', 'बारिश', 'હવામાન', 'વરસાદ', 'हवामान', 'पाऊस'],
+} as const;
+
+function hasKeyword(query: string, keywords: readonly string[]): boolean {
   const normalized = query.toLowerCase();
   return keywords.some(keyword => normalized.includes(keyword));
 }
@@ -109,19 +116,19 @@ export function getFarmerChatbotReply({
   const suggestedCrops = topCropNames.length > 0 ? topCropNames.slice(0, MAX_TOP_CROP_HINTS).join(', ') : null;
   const copy = CHATBOT_COPY[selectedLanguage];
 
-  if (hasKeyword(query, ['fertilizer', 'खाद', 'उर्वरक', 'ખાતર', 'खत', 'npk'])) {
+  if (hasKeyword(query, KEYWORDS_BY_TOPIC.fertilizer)) {
     return copy.fertilizer;
   }
 
-  if (hasKeyword(query, ['water', 'irrigation', 'सिंचाई', 'પાણી', 'સિંચાઈ', 'पाणी', 'सिंचन'])) {
+  if (hasKeyword(query, KEYWORDS_BY_TOPIC.irrigation)) {
     return copy.irrigation;
   }
 
-  if (hasKeyword(query, ['disease', 'pest', 'कीट', 'रोग', 'જીવાત', 'રોગ', 'कीड'])) {
+  if (hasKeyword(query, KEYWORDS_BY_TOPIC.pest)) {
     return copy.pest;
   }
 
-  if (hasKeyword(query, ['weather', 'rain', 'मौसम', 'बारिश', 'હવામાન', 'વરસાદ', 'हवामान', 'पाऊस'])) {
+  if (hasKeyword(query, KEYWORDS_BY_TOPIC.weather)) {
     return copy.weather;
   }
 
