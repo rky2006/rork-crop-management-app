@@ -2,12 +2,24 @@ import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { CloudDrizzle, CloudSun, Sun, Wind } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { WEATHER_FORECAST } from "@/mocks/weatherForecast";
+import { useUser } from "@/contexts/UserContext";
+import { INDIAN_STATES } from "@/mocks/cropSuggestions";
+import { ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from "@/mocks/weatherForecast";
 
 export default function WeatherScreen() {
-  const highestRainDay = WEATHER_FORECAST.reduce((max, day) => (day.rain > max.rain ? day : max), WEATHER_FORECAST[0]);
+  const { location } = useUser();
+  const selectedState = INDIAN_STATES.find((state) => state.label === location) ?? null;
+  const forecastData = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
+  let highestRainDay: ForecastDay | null = null;
+  for (const day of forecastData) {
+    if (!highestRainDay || day.rain > highestRainDay.rain) {
+      highestRainDay = day;
+    }
+  }
   const tipMessage =
-    highestRainDay.rain >= 50
+    !highestRainDay
+      ? "Forecast data is unavailable. Select your state to view region-specific weather."
+      : highestRainDay.rain >= 50
       ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
       : `No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.`;
 
@@ -21,7 +33,7 @@ export default function WeatherScreen() {
         </View>
       </View>
 
-      {WEATHER_FORECAST.map((item) => (
+      {forecastData.map((item) => (
         <View key={item.day} style={styles.card}>
           <View style={styles.dayRow}>
             <Text style={styles.day}>{item.day}</Text>
