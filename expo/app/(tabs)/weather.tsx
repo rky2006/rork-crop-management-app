@@ -10,9 +10,11 @@ export default function WeatherScreen() {
   const { location } = useUser();
   const selectedState = INDIAN_STATES.find((state) => state.label === location) ?? null;
   const forecastData = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
-  const highestRainDay = forecastData.reduce((max, day) => (day.rain > max.rain ? day : max), forecastData[0]);
+  const highestRainDay = forecastData.length > 0
+    ? forecastData.reduce((max, day) => (day.rain > max.rain ? day : max), forecastData[0])
+    : null;
   const tipMessage =
-    highestRainDay.rain >= 50
+    highestRainDay && highestRainDay.rain >= 50
       ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
       : `No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.`;
 
