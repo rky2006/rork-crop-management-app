@@ -14,7 +14,9 @@ export default function WeatherScreen() {
     ? forecastData.reduce((max, day) => (day.rain > max.rain ? day : max), forecastData[0])
     : null;
   const tipMessage =
-    highestRainDay && highestRainDay.rain >= 50
+    !highestRainDay
+      ? "Forecast data is currently unavailable. Please check back shortly."
+      : highestRainDay.rain >= 50
       ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
       : `No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.`;
 
