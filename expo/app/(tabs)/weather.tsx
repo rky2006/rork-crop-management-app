@@ -18,7 +18,7 @@ export default function WeatherScreen() {
   }
   const tipMessage =
     !highestRainDay
-      ? "Forecast data is unavailable. Select your state in Suggestions for region-specific weather."
+      ? "Forecast data is unavailable. Select your state to view region-specific weather."
       : highestRainDay.rain >= 50
       ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
       : `No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.`;
