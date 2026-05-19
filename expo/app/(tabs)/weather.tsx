@@ -4,18 +4,21 @@ import { CloudDrizzle, CloudSun, Sun, Wind } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useUser } from "@/contexts/UserContext";
 import { INDIAN_STATES } from "@/mocks/cropSuggestions";
-import { REGION_WEATHER_FORECAST, WEATHER_FORECAST } from "@/mocks/weatherForecast";
+import { ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from "@/mocks/weatherForecast";
 
 export default function WeatherScreen() {
   const { location } = useUser();
   const selectedState = INDIAN_STATES.find((state) => state.label === location) ?? null;
   const forecastData = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
-  const highestRainDay = forecastData.length > 0
-    ? forecastData.reduce((max, day) => (day.rain > max.rain ? day : max), forecastData[0])
-    : null;
+  let highestRainDay: ForecastDay | null = null;
+  for (const day of forecastData) {
+    if (!highestRainDay || day.rain > highestRainDay.rain) {
+      highestRainDay = day;
+    }
+  }
   const tipMessage =
     !highestRainDay
-      ? "Forecast data is currently unavailable. Please check back shortly."
+      ? "Forecast data is unavailable. Select your state in Suggestions for region-specific weather."
       : highestRainDay.rain >= 50
       ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
       : `No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.`;
