@@ -31,12 +31,12 @@ export default function DashboardScreen() {
     <View style={styles.screen}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <TouchableOpacity activeOpacity={0.75} accessibilityRole="button" accessibilityLabel="Open menu">
+          <View accessibilityLabel="Menu icon">
             <Menu size={34} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.75} accessibilityRole="button" accessibilityLabel="Open profile">
+          </View>
+          <View accessibilityLabel="Profile icon">
             <CircleUserRound size={46} color="#fff" />
-          </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.sectionCard}>
@@ -86,7 +86,7 @@ export default function DashboardScreen() {
             <Text style={styles.weatherText}>
               {location
                 ? `Today in ${location}: ${todayWeather?.condition ?? 'Forecast unavailable'} · ${todayWeather?.temp ?? '--'} · Rain ${todayWeather?.rain ?? '--'}%`
-                : 'Your location is needed to serve the weather forecast of your farm.'}
+                : 'Your location is needed to provide the weather forecast of your farm.'}
             </Text>
           </TouchableOpacity>
         </View>
