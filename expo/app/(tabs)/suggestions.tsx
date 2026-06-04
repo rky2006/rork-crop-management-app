@@ -275,8 +275,12 @@ export default function SuggestionsScreen() {
         setLocationStatusText('Live location found. State could not be matched automatically.');
       }
       setHasAnalyzed(false);
-    } catch {
-      setLocationStatusText('Unable to fetch live location. Please try again.');
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.toLowerCase().includes('timeout')
+          ? 'Location request timed out. Move to an open area and try again.'
+          : 'Unable to fetch live location. Please try again.';
+      setLocationStatusText(message);
     } finally {
       setIsDetectingLocation(false);
     }
@@ -445,6 +449,8 @@ export default function SuggestionsScreen() {
           onPress={handleUseLiveLocation}
           activeOpacity={0.85}
           disabled={isDetectingLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Use live location to auto-detect your state and fetch local weather"
         >
           {isDetectingLocation ? <ActivityIndicator size="small" color={Colors.info} /> : <LocateFixed size={15} color={Colors.info} />}
           <Text style={styles.liveLocationButtonText}>

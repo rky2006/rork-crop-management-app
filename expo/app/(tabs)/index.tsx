@@ -86,11 +86,23 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </LinearGradient>
       <View style={styles.quickActionsRow}>
-        <TouchableOpacity style={styles.quickActionCard} onPress={() => router.push('/suggestions')} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/suggestions')}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Open crop advisor"
+        >
           <Sparkles size={16} color={Colors.primary} />
           <Text style={styles.quickActionText}>Advisor</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.quickActionCard} onPress={() => router.push('/suggestions')} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/suggestions')}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="View live weather forecast"
+        >
           <CloudRain size={16} color={Colors.info} />
           <Text style={styles.quickActionText}>Live Weather</Text>
         </TouchableOpacity>
