@@ -21,9 +21,13 @@ export default function MarketPriceCard({ cropName }: Props) {
       };
     }
 
-    getLiveMandiPrice(cropName).then(result => {
-      if (active) setLiveMandiPrice(result);
-    });
+    getLiveMandiPrice(cropName)
+      .then(result => {
+        if (active) setLiveMandiPrice(result);
+      })
+      .catch(() => {
+        if (active) setLiveMandiPrice(null);
+      });
 
     return () => {
       active = false;

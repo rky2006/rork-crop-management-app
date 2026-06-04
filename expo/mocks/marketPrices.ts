@@ -25,16 +25,15 @@ export interface LiveMandiPrice {
 }
 
 const DATA_GOV_MANDI_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
-const DATA_GOV_DEMO_API_KEY = '579b464db66ec23bdd000001591697ac';
 
 const LIVE_MANDI_COMMODITY_MAP: Record<string, string> = {
   rice: 'Paddy(Dhan)(Common)',
   mustard: 'Mustard',
-  'tur/arhar': 'Arhar (Tur/Red Gram)(Whole)',
+  turarhar: 'Arhar (Tur/Red Gram)(Whole)',
   sesame: 'Sesamum(Sesame,Gingelly,Til)',
-  'sesame (til)': 'Sesamum(Sesame,Gingelly,Til)',
+  sesametil: 'Sesamum(Sesame,Gingelly,Til)',
   coriander: 'Coriander(Leaves)',
-  'cumin (jeera)': 'Cummin Seed(Jeera)',
+  cuminjeera: 'Cummin Seed(Jeera)',
   chilli: 'Chilly Capsicum',
 };
 
@@ -89,8 +88,8 @@ const priceMap = new Map<string, CropMarketPrice>(
 );
 
 function normalizeCommodity(cropName: string): string {
-  const normalized = cropName.trim().toLowerCase();
-  return LIVE_MANDI_COMMODITY_MAP[normalized] ?? cropName;
+  const normalizedKey = cropName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  return LIVE_MANDI_COMMODITY_MAP[normalizedKey] ?? cropName;
 }
 
 function parseNumericPrice(value: unknown): number | null {
@@ -118,12 +117,14 @@ export function getDefaultYieldUnit(cropName: string): 'quintal' | 'kg' | 'tonne
 export async function getLiveMandiPrice(cropName: string): Promise<LiveMandiPrice | null> {
   const staticPrice = getMarketPrice(cropName);
   if (!staticPrice || staticPrice.unit !== 'per_quintal') return null;
+  const apiKey = process.env.EXPO_PUBLIC_DATA_GOV_API_KEY?.trim();
+  if (!apiKey) return null;
 
   try {
     const params = new URLSearchParams({
       format: 'json',
       limit: '10',
-      'api-key': process.env.EXPO_PUBLIC_DATA_GOV_API_KEY ?? DATA_GOV_DEMO_API_KEY,
+      'api-key': apiKey,
       'filters[commodity]': normalizeCommodity(cropName),
     });
 
