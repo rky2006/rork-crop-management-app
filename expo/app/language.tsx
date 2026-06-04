@@ -5,18 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   StatusBar,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useUser } from '@/contexts/UserContext';
 import Colors from '@/constants/colors';
 import { LANGUAGE_OPTIONS, getSupportedLanguage } from '@/constants/languages';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_PADDING = 16;
 const CARD_GAP = 10;
-const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP) / 2;
 
 const CONTINUE_COPY: Record<string, string> = {
   en: 'Continue',
@@ -28,6 +26,8 @@ const CONTINUE_COPY: Record<string, string> = {
 export default function LanguageSelectionScreen() {
   const router = useRouter();
   const { language, setLanguage } = useUser();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = (screenWidth - GRID_PADDING * 2 - CARD_GAP) / 2;
   const [selectedLanguage, setSelectedLanguage] = useState(language ?? '');
   const activeLanguage = getSupportedLanguage(selectedLanguage || language);
   const continueLabel = CONTINUE_COPY[activeLanguage] ?? CONTINUE_COPY.en;
@@ -60,7 +60,7 @@ export default function LanguageSelectionScreen() {
             return (
               <TouchableOpacity
                 key={option.code}
-                style={[styles.card, isSelected && styles.cardSelected]}
+                style={[styles.card, isSelected && styles.cardSelected, { width: cardWidth }]}
                 onPress={() => setSelectedLanguage(option.code)}
                 activeOpacity={0.8}
               >
@@ -126,7 +126,6 @@ const styles = StyleSheet.create({
     gap: CARD_GAP,
   },
   card: {
-    width: CARD_WIDTH,
     backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 14,

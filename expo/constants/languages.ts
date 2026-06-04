@@ -16,7 +16,7 @@ export const LANGUAGE_OPTIONS: Array<{
   { code: 'te', greeting: 'నమస్తే',           nativeName: 'తెలుగు',     englishName: 'Telugu' },
   { code: 'kn', greeting: 'ನಮಸ್ಕಾರ',          nativeName: 'ಕನ್ನಡ',      englishName: 'Kannada' },
   { code: 'ml', greeting: 'നമസ്കാരം',         nativeName: 'മലയാളം',     englishName: 'Malayalam' },
-  { code: 'od', greeting: 'ନମସ୍କାର',          nativeName: 'ଓଡ଼ିଆ',      englishName: 'Odia' },
+  { code: 'or', greeting: 'ନମସ୍କାର',          nativeName: 'ଓଡ଼ିଆ',      englishName: 'Odia' },
   { code: 'as', greeting: 'নমস্কাৰ',          nativeName: 'অসমীয়া',    englishName: 'Assamese' },
 ];
 
