@@ -23,7 +23,7 @@ export default function ProfitSummary({ crop }: Props) {
   const totalExpenses = getTotalExpenses(crop);
   const expectedRevenue = getExpectedRevenue(crop);
   const hasYieldData = expectedRevenue !== null;
-  const netProfit = hasYieldData ? expectedRevenue! - totalExpenses : null;
+  const netProfit = hasYieldData ? expectedRevenue - totalExpenses : null;
 
   const yieldUnitShort = YIELD_UNIT_SHORT[crop.yieldUnit ?? 'quintal'];
 
@@ -61,17 +61,17 @@ export default function ProfitSummary({ crop }: Props) {
         <View style={styles.divider} />
         <View style={styles.cell}>
           <Text style={styles.cellLabel}>Expected Revenue</Text>
-          {hasYieldData ? (
+          {hasYieldData && expectedRevenue !== null ? (
             <>
               <Text style={[styles.cellValue, { color: Colors.primaryLight }]}>
-                {fmtINR(expectedRevenue!)}
+                {fmtINR(expectedRevenue)}
               </Text>
               <Text style={styles.cellSub}>
-                {crop.expectedYield} {yieldUnitShort} × {fmtINR(parseFloat(crop.sellingPricePerUnit!))}/{yieldUnitShort}
+                {crop.expectedYield} {yieldUnitShort} × {fmtINR(parseFloat(crop.sellingPricePerUnit ?? '0'))}/{yieldUnitShort}
               </Text>
             </>
           ) : (
-            <Text style={styles.noData}>Add yield &amp; price in edit</Text>
+            <Text style={styles.noData}>Add yield & price in edit</Text>
           )}
         </View>
       </View>
@@ -85,7 +85,7 @@ export default function ProfitSummary({ crop }: Props) {
             </Text>
           ) : (
             <Text style={[styles.profitText, { color: Colors.textSecondary }]}>
-              Add expected yield &amp; selling price to calculate profit
+              Add expected yield & selling price to calculate profit
             </Text>
           )}
         </View>

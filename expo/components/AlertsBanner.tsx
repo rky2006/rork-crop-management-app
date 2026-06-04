@@ -17,6 +17,8 @@ interface Alert {
   message: string;
 }
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 function buildAlerts(crops: Crop[]): Alert[] {
   const now = Date.now();
   const alerts: Alert[] = [];
@@ -57,7 +59,7 @@ function buildAlerts(crops: Crop[]): Alert[] {
     const lastActivity = crop.activities.reduce((latest, a) => {
       return new Date(a.date).getTime() > new Date(latest.date).getTime() ? a : latest;
     });
-    const daysSinceActivity = Math.floor((now - new Date(lastActivity.date).getTime()) / (1000 * 60 * 60 * 24));
+    const daysSinceActivity = Math.floor((now - new Date(lastActivity.date).getTime()) / MS_PER_DAY);
     if (daysSinceActivity >= 14) {
       alerts.push({
         type: 'idle',
