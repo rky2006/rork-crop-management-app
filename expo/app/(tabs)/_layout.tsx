@@ -3,6 +3,8 @@ import { House, MessageSquareMore, Sprout } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
+const TAB_BAR_HEIGHT = 74;
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -13,7 +15,7 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.borderLight,
-          height: 74,
+          height: TAB_BAR_HEIGHT,
           paddingBottom: 10,
           paddingTop: 8,
         },

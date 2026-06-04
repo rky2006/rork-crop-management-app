@@ -31,10 +31,10 @@ export default function DashboardScreen() {
     <View style={styles.screen}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <View accessibilityLabel="Menu icon">
+          <View accessibilityRole="none" importantForAccessibility="no">
             <Menu size={34} color="#fff" />
           </View>
-          <View accessibilityLabel="Profile icon">
+          <View accessibilityRole="none" importantForAccessibility="no">
             <CircleUserRound size={46} color="#fff" />
           </View>
         </View>
