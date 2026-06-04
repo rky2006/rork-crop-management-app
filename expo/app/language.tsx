@@ -21,6 +21,14 @@ const CONTINUE_COPY: Record<string, string> = {
   hi: 'आगे बढ़ें',
   gu: 'આગળ વધો',
   mr: 'पुढे जा',
+  pa: 'ਅੱਗੇ ਵਧੋ',
+  bn: 'এগিয়ে যান',
+  ta: 'தொடரவும்',
+  te: 'కొనసాగించు',
+  kn: 'ಮುಂದುವರಿಸಿ',
+  ml: 'തുടരുക',
+  or: 'ଆଗକୁ ଯାଆ',
+  as: 'আগবাঢ়ক',
 };
 
 export default function LanguageSelectionScreen() {

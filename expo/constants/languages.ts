@@ -1,7 +1,8 @@
 export type SupportedLanguageCode = 'en' | 'hi' | 'gu' | 'mr';
+export type LanguageCode = SupportedLanguageCode | 'pa' | 'bn' | 'ta' | 'te' | 'kn' | 'ml' | 'or' | 'as';
 
 export const LANGUAGE_OPTIONS: Array<{
-  code: string;
+  code: LanguageCode;
   greeting: string;
   nativeName: string;
   englishName: string;
