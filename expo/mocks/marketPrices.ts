@@ -24,6 +24,7 @@ export interface LiveMandiPrice {
   fetchedAt: string;
 }
 
+// data.gov.in Agmarknet endpoint (commodity-wise mandi prices): https://www.data.gov.in/
 const DATA_GOV_MANDI_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
 const LIVE_MANDI_COMMODITY_MAP: Record<string, string> = {
@@ -117,6 +118,7 @@ export function getDefaultYieldUnit(cropName: string): 'quintal' | 'kg' | 'tonne
 export async function getLiveMandiPrice(cropName: string): Promise<LiveMandiPrice | null> {
   const staticPrice = getMarketPrice(cropName);
   if (!staticPrice || staticPrice.unit !== 'per_quintal') return null;
+  // Live fetch is enabled only when EXPO_PUBLIC_DATA_GOV_API_KEY is configured.
   const apiKey = process.env.EXPO_PUBLIC_DATA_GOV_API_KEY?.trim();
   if (!apiKey) return null;
 
