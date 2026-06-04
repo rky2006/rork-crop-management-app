@@ -9,6 +9,7 @@ import { STAGE_LABELS, STAGE_COLORS, CATEGORY_LABELS } from '@/types/crop';
 import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import Colors from '@/constants/colors';
 import { Image } from 'expo-image';
+import AlertsBanner from '@/components/AlertsBanner';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -88,6 +89,12 @@ export default function DashboardScreen() {
           <Text style={styles.statLabel}>Harvested</Text>
         </View>
       </View>
+
+      {activeCrops.length > 0 && (
+        <View style={styles.section}>
+          <AlertsBanner crops={activeCrops} />
+        </View>
+      )}
 
       {activeCrops.length > 0 && (
         <View style={styles.section}>
