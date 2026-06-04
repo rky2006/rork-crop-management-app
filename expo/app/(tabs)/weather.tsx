@@ -14,10 +14,11 @@ export default function WeatherScreen() {
     ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST)
     : WEATHER_FORECAST;
   const weatherQuery = useQuery({
-    queryKey: ["weather-forecast", selectedState?.region ?? "default"],
+    queryKey: ["weather-forecast", selectedState?.region ?? null],
     queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null),
     staleTime: 5 * 60 * 1000,
     refetchInterval: 15 * 60 * 1000,
+    refetchIntervalInBackground: false,
   });
   const forecastData = weatherQuery.data ?? regionalFallbackForecast;
   let highestRainDay: ForecastDay | null = null;
@@ -55,7 +56,9 @@ export default function WeatherScreen() {
 
       {weatherQuery.isError && (
         <View style={styles.statusCard}>
-          <Text style={styles.statusText}>Live weather is unavailable. Showing fallback forecast data.</Text>
+          <Text style={styles.statusText}>
+            Unable to fetch live weather data. Check your internet connection; fallback forecast is shown.
+          </Text>
         </View>
       )}
 

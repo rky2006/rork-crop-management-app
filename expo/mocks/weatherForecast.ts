@@ -64,7 +64,15 @@ interface OpenMeteoDailyResponse {
 function formatDayLabel(dateText: string, index: number): string {
   if (index === 0) return 'Today';
   if (index === 1) return 'Tomorrow';
-  const date = new Date(`${dateText}T00:00:00`);
+  const parts = dateText.split('-');
+  if (parts.length !== 3) {
+    return `Day ${index + 1}`;
+  }
+  const [year, month, day] = parts.map(Number);
+  if (!year || !month || !day) {
+    return `Day ${index + 1}`;
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
   return date.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
@@ -89,9 +97,10 @@ export async function fetchRealtimeWeatherForecast(region: IndianRegion | null):
     timezone: 'auto',
     forecast_days: '4',
   });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+  const weatherUrl = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+  const response = await fetch(weatherUrl);
   if (!response.ok) {
-    throw new Error(`Weather request failed with status ${response.status}`);
+    throw new Error(`Weather request failed (${response.status}) for region ${region ?? 'default'}: ${weatherUrl}`);
   }
   const data = (await response.json()) as OpenMeteoDailyResponse;
   const daily = data.daily;
@@ -106,13 +115,34 @@ export async function fetchRealtimeWeatherForecast(region: IndianRegion | null):
   ) {
     throw new Error('Weather response did not include daily forecast data');
   }
-  return daily.time.map((dateText, index) => ({
-    day: formatDayLabel(dateText, index),
-    condition: mapWeatherCodeToCondition(daily.weather_code[index]),
-    temp: formatTemperature(daily.temperature_2m_max[index], daily.temperature_2m_min[index]),
-    rain: Math.round(daily.precipitation_probability_max[index]),
-    wind: formatWind(daily.wind_speed_10m_max[index]),
-  }));
+  const dailyCount = daily.time.length;
+  const consistentLength =
+    daily.weather_code.length === dailyCount &&
+    daily.temperature_2m_max.length === dailyCount &&
+    daily.temperature_2m_min.length === dailyCount &&
+    daily.precipitation_probability_max.length === dailyCount &&
+    daily.wind_speed_10m_max.length === dailyCount;
+  if (!consistentLength) {
+    throw new Error('Weather response daily arrays are inconsistent');
+  }
+  return daily.time.map((dateText, index) => {
+    const weatherCode = daily.weather_code[index];
+    const tempMax = daily.temperature_2m_max[index];
+    const tempMin = daily.temperature_2m_min[index];
+    const rainProbability = daily.precipitation_probability_max[index];
+    const windMax = daily.wind_speed_10m_max[index];
+    const values = [weatherCode, tempMax, tempMin, rainProbability, windMax];
+    if (values.some((value) => value == null || Number.isNaN(value) || !Number.isFinite(value))) {
+      throw new Error(`Weather response has invalid values at index ${index}`);
+    }
+    return {
+      day: formatDayLabel(dateText, index),
+      condition: mapWeatherCodeToCondition(weatherCode),
+      temp: formatTemperature(tempMax, tempMin),
+      rain: Math.round(rainProbability),
+      wind: formatWind(windMax),
+    };
+  });
 }
 
 export const WEATHER_FORECAST: ForecastDay[] = [
