@@ -70,6 +70,22 @@ export type ActivityType =
   | 'inspection'
   | 'other';
 
+export type YieldUnit = 'quintal' | 'kg' | 'tonne' | 'bag';
+
+export const YIELD_UNIT_LABELS: Record<YieldUnit, string> = {
+  quintal: 'Quintal (100 kg)',
+  kg: 'Kilogram (kg)',
+  tonne: 'Tonne (1000 kg)',
+  bag: 'Bag (50 kg)',
+};
+
+export const YIELD_UNIT_SHORT: Record<YieldUnit, string> = {
+  quintal: 'qtl',
+  kg: 'kg',
+  tonne: 'tonne',
+  bag: 'bag',
+};
+
 export interface Crop {
   id: string;
   name: string;
@@ -86,6 +102,9 @@ export interface Crop {
   imageUrl: string;
   farmingType: FarmingType;
   soilReport?: SoilReport;
+  expectedYield?: string;
+  yieldUnit?: YieldUnit;
+  sellingPricePerUnit?: string;
 }
 
 export const GROWTH_STAGES: GrowthStage[] = [

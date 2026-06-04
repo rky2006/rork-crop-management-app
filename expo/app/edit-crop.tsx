@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert 
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Check, Leaf, Factory } from 'lucide-react-native';
 import { useCrops } from '@/contexts/CropContext';
-import { CropCategory, CATEGORY_LABELS, GrowthStage, FarmingType, FARMING_TYPE_LABELS } from '@/types/crop';
+import { CropCategory, CATEGORY_LABELS, GrowthStage, FarmingType, FARMING_TYPE_LABELS, YieldUnit } from '@/types/crop';
 import { CROP_TEMPLATES } from '@/mocks/crops';
 import CalendarPicker from '@/components/CalendarPicker';
 import Colors from '@/constants/colors';
@@ -25,6 +25,9 @@ export default function EditCropScreen() {
   const [category, setCategory] = useState<CropCategory>('grain');
   const [farmingType, setFarmingType] = useState<FarmingType>('non-organic');
   const [currentStage, setCurrentStage] = useState<GrowthStage>('sowing');
+  const [expectedYield, setExpectedYield] = useState('');
+  const [yieldUnit, setYieldUnit] = useState<YieldUnit>('quintal');
+  const [sellingPricePerUnit, setSellingPricePerUnit] = useState('');
 
   useEffect(() => {
     if (crop) {
@@ -38,6 +41,9 @@ export default function EditCropScreen() {
       setCategory(crop.category);
       setFarmingType(crop.farmingType);
       setCurrentStage(crop.currentStage);
+      setExpectedYield(crop.expectedYield ?? '');
+      setYieldUnit(crop.yieldUnit ?? 'quintal');
+      setSellingPricePerUnit(crop.sellingPricePerUnit ?? '');
     }
   }, [crop]);
 
@@ -66,10 +72,13 @@ export default function EditCropScreen() {
       currentStage,
       notes: notes.trim(),
       farmingType,
+      expectedYield: expectedYield.trim() || undefined,
+      yieldUnit: expectedYield.trim() ? yieldUnit : undefined,
+      sellingPricePerUnit: sellingPricePerUnit.trim() || undefined,
     });
 
     router.back();
-  }, [id, name, category, variety, plotName, plotSize, sowingDate, expectedHarvestDate, currentStage, notes, farmingType, updateCrop, router]);
+  }, [id, name, category, variety, plotName, plotSize, sowingDate, expectedHarvestDate, currentStage, notes, farmingType, expectedYield, yieldUnit, sellingPricePerUnit, updateCrop, router]);
 
   if (!crop) {
     return (
@@ -212,6 +221,55 @@ export default function EditCropScreen() {
               minDate={sowingDate}
             />
           </View>
+        </View>
+
+        <View style={styles.sectionDivider}>
+          <Text style={styles.sectionTitle}>💰 Profit Tracking (Optional)</Text>
+          <Text style={styles.sectionSubtitle}>Add expected yield and selling price to track profit</Text>
+        </View>
+
+        <View style={styles.row}>
+          <View style={[styles.field, { flex: 1 }]}>
+            <Text style={styles.label}>Expected Yield</Text>
+            <TextInput
+              style={styles.input}
+              value={expectedYield}
+              onChangeText={setExpectedYield}
+              placeholder="e.g. 15"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ width: 12 }} />
+          <View style={[styles.field, { flex: 1 }]}>
+            <Text style={styles.label}>Unit</Text>
+            <View style={styles.unitRow}>
+              {(['quintal', 'kg', 'tonne', 'bag'] as YieldUnit[]).map(u => (
+                <TouchableOpacity
+                  key={u}
+                  style={[styles.unitChip, yieldUnit === u && styles.unitChipActive]}
+                  onPress={() => setYieldUnit(u)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.unitChipText, yieldUnit === u && styles.unitChipTextActive]}>
+                    {u === 'quintal' ? 'Qtl' : u === 'tonne' ? 'Tonne' : u === 'bag' ? 'Bag' : 'kg'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Selling Price per {yieldUnit === 'quintal' ? 'Quintal' : yieldUnit === 'tonne' ? 'Tonne' : yieldUnit === 'bag' ? 'Bag' : 'kg'} (₹)</Text>
+          <TextInput
+            style={styles.input}
+            value={sellingPricePerUnit}
+            onChangeText={setSellingPricePerUnit}
+            placeholder="e.g. 2200"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="numeric"
+          />
         </View>
 
         <View style={styles.field}>
@@ -387,5 +445,46 @@ const styles = StyleSheet.create({
     color: '#15803D',
     flex: 1,
     lineHeight: 16,
+  },
+  sectionDivider: {
+    marginVertical: 8,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  unitRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  unitChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  unitChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  unitChipText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
+  },
+  unitChipTextActive: {
+    color: '#fff',
   },
 });

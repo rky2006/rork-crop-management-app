@@ -16,6 +16,8 @@ import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import StageTimeline from '@/components/StageTimeline';
 import FarmingTips from '@/components/FarmingTips';
 import FertilizerSuggestions from '@/components/FertilizerSuggestions';
+import ProfitSummary from '@/components/ProfitSummary';
+import MarketPriceCard from '@/components/MarketPriceCard';
 import { FARMING_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
 
@@ -369,6 +371,14 @@ export default function CropDetailScreen() {
 
       <View style={styles.section}>
         <FarmingTips currentStage={crop.currentStage} category={crop.category} cropName={crop.name} />
+      </View>
+
+      <View style={styles.section}>
+        <ProfitSummary crop={crop} />
+      </View>
+
+      <View style={styles.section}>
+        <MarketPriceCard cropName={crop.name} />
       </View>
 
       <View style={styles.dangerSection}>
