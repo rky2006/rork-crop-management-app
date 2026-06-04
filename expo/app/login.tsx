@@ -69,7 +69,7 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const activeLanguage = getSupportedLanguage(language);
   const copy = LOGIN_COPY[activeLanguage];
-  const selectedLanguageName = LANGUAGE_OPTIONS.find(option => option.code === activeLanguage)?.name ?? 'English';
+  const selectedLanguageName = LANGUAGE_OPTIONS.find(option => option.code === activeLanguage)?.englishName ?? 'English';
 
   const handleLogin = useCallback(() => {
     if (!name.trim()) return;

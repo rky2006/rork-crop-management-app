@@ -5,43 +5,32 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Check, Languages } from 'lucide-react-native';
 import { useUser } from '@/contexts/UserContext';
 import Colors from '@/constants/colors';
 import { LANGUAGE_OPTIONS, getSupportedLanguage } from '@/constants/languages';
 
-const LANGUAGE_SCREEN_COPY = {
-  en: {
-    title: 'Choose Language',
-    subtitle: 'Select your preferred language before login',
-    continue: 'Continue',
-  },
-  hi: {
-    title: 'भाषा चुनें',
-    subtitle: 'लॉगिन से पहले अपनी पसंदीदा भाषा चुनें',
-    continue: 'आगे बढ़ें',
-  },
-  gu: {
-    title: 'ભાષા પસંદ કરો',
-    subtitle: 'લૉગિન પહેલાં તમારી પસંદની ભાષા પસંદ કરો',
-    continue: 'આગળ વધો',
-  },
-  mr: {
-    title: 'भाषा निवडा',
-    subtitle: 'लॉगिनपूर्वी आपली पसंतीची भाषा निवडा',
-    continue: 'पुढे जा',
-  },
-} as const;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GRID_PADDING = 16;
+const CARD_GAP = 10;
+const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP) / 2;
+
+const CONTINUE_COPY: Record<string, string> = {
+  en: 'Continue',
+  hi: 'आगे बढ़ें',
+  gu: 'આગળ વધો',
+  mr: 'पुढे जा',
+};
 
 export default function LanguageSelectionScreen() {
   const router = useRouter();
   const { language, setLanguage } = useUser();
   const [selectedLanguage, setSelectedLanguage] = useState(language ?? '');
   const activeLanguage = getSupportedLanguage(selectedLanguage || language);
-  const copy = LANGUAGE_SCREEN_COPY[activeLanguage];
+  const continueLabel = CONTINUE_COPY[activeLanguage] ?? CONTINUE_COPY.en;
 
   const canContinue = useMemo(() => !!selectedLanguage, [selectedLanguage]);
 
@@ -54,48 +43,54 @@ export default function LanguageSelectionScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <LinearGradient
-        colors={['#2D6A4F', '#40916C', '#52B788']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <View style={styles.iconContainer}>
-          <Languages size={42} color="#fff" />
-        </View>
-        <Text style={styles.title}>{copy.title}</Text>
-        <Text style={styles.subtitle}>{copy.subtitle}</Text>
-      </LinearGradient>
+      <StatusBar barStyle="dark-content" />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Choose your language</Text>
+        <Text style={styles.subtitle}>अपनी भाषा चुनें</Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.grid}>
           {LANGUAGE_OPTIONS.map((option) => {
             const isSelected = selectedLanguage === option.code;
             return (
               <TouchableOpacity
                 key={option.code}
-                style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
+                style={[styles.card, isSelected && styles.cardSelected]}
                 onPress={() => setSelectedLanguage(option.code)}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
               >
-                <View>
-                  <Text style={styles.optionName}>{option.name}</Text>
-                  <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
+                <Text
+                  style={[styles.greeting, isSelected && styles.greetingSelected]}
+                  numberOfLines={2}
+                >
+                  {option.greeting}
+                </Text>
+                <View style={styles.cardFooter}>
+                  <Text style={[styles.nativeName, isSelected && styles.nameSelected]}>
+                    {option.nativeName}
+                  </Text>
+                  <Text style={[styles.englishName, isSelected && styles.nameSelected]}>
+                    {option.englishName}
+                  </Text>
                 </View>
-                {isSelected ? <Check size={20} color={Colors.primary} /> : null}
               </TouchableOpacity>
             );
           })}
-
-          <TouchableOpacity
-            style={[styles.continueButton, !canContinue && styles.continueButtonDisabled]}
-            onPress={handleContinue}
-            disabled={!canContinue}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.continueButtonText}>{copy.continue}</Text>
-          </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={[styles.continueButton, !canContinue && styles.continueButtonDisabled]}
+          onPress={handleContinue}
+          disabled={!canContinue}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.continueButtonText}>{continueLabel}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -106,80 +101,77 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  hero: {
-    alignItems: 'center',
-    paddingTop: 90,
-    paddingBottom: 56,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  iconContainer: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+  header: {
+    paddingTop: 60,
+    paddingBottom: 16,
+    paddingHorizontal: GRID_PADDING,
   },
   title: {
-    fontSize: 30,
-    color: '#fff',
+    fontSize: 28,
     fontWeight: '800' as const,
+    color: Colors.text,
   },
   subtitle: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+    color: Colors.textSecondary,
   },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-    marginTop: -32,
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: GRID_PADDING,
+    gap: CARD_GAP,
   },
   card: {
+    width: CARD_WIDTH,
     backgroundColor: Colors.surface,
-    borderRadius: 24,
-    padding: 20,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  optionButton: {
+    borderRadius: 12,
+    padding: 14,
+    minHeight: 100,
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  },
+  cardSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  greeting: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    lineHeight: 28,
+  },
+  greetingSelected: {
+    color: '#fff',
+  },
+  cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    marginTop: 10,
   },
-  optionButtonSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: '#EFF8F3',
-  },
-  optionName: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  optionSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
+  nativeName: {
+    fontSize: 12,
+    fontWeight: '500' as const,
     color: Colors.textSecondary,
   },
+  englishName: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  nameSelected: {
+    color: 'rgba(255,255,255,0.8)',
+  },
   continueButton: {
-    marginTop: 8,
+    marginHorizontal: GRID_PADDING,
+    marginTop: 20,
     borderRadius: 14,
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   continueButtonDisabled: {
