@@ -1,15 +1,25 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { CloudDrizzle, CloudSun, Sun, Wind } from "lucide-react-native";
+import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useUser } from "@/contexts/UserContext";
 import { INDIAN_STATES } from "@/mocks/cropSuggestions";
-import { ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from "@/mocks/weatherForecast";
+import { fetchRealtimeWeatherForecast, ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from "@/mocks/weatherForecast";
 
 export default function WeatherScreen() {
   const { location } = useUser();
   const selectedState = INDIAN_STATES.find((state) => state.label === location) ?? null;
-  const forecastData = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
+  const regionalFallbackForecast = selectedState
+    ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST)
+    : WEATHER_FORECAST;
+  const weatherQuery = useQuery({
+    queryKey: ["weather-forecast", selectedState?.region ?? "default"],
+    queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
+  const forecastData = weatherQuery.data ?? regionalFallbackForecast;
   let highestRainDay: ForecastDay | null = null;
   for (const day of forecastData) {
     if (!highestRainDay || day.rain > highestRainDay.rain) {
@@ -29,9 +39,25 @@ export default function WeatherScreen() {
         <CloudSun size={28} color={Colors.primary} />
         <View style={styles.headerTextWrap}>
           <Text style={styles.headerTitle}>Weather Forecast</Text>
-          <Text style={styles.headerSubtitle}>Plan watering and field activities with upcoming conditions.</Text>
+          <Text style={styles.headerSubtitle}>
+            {weatherQuery.isSuccess
+              ? "Live weather updates every 15 minutes for your selected region."
+              : "Plan watering and field activities with upcoming conditions."}
+          </Text>
         </View>
       </View>
+
+      {weatherQuery.isLoading && (
+        <View style={styles.statusCard}>
+          <Text style={styles.statusText}>Loading live forecast...</Text>
+        </View>
+      )}
+
+      {weatherQuery.isError && (
+        <View style={styles.statusCard}>
+          <Text style={styles.statusText}>Live weather is unavailable. Showing fallback forecast data.</Text>
+        </View>
+      )}
 
       {forecastData.map((item) => (
         <View key={item.day} style={styles.card}>
@@ -144,6 +170,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.warningBorder,
     gap: 6,
+  },
+  statusCard: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 12,
+    padding: 12,
+  },
+  statusText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
   },
   tipTitleRow: {
     flexDirection: "row",
