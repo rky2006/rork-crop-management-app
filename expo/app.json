@@ -24,6 +24,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "app.rork.crop_management_app"
+      "versionCode": 2,
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
