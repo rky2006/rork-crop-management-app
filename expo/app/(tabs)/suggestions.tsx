@@ -93,16 +93,18 @@ function normalizeLocationValue(value?: string | null): string {
   return (value ?? '').toLowerCase().replace(/[^a-z]/g, '');
 }
 
+const STATE_NAME_LOOKUP = new Map(
+  INDIAN_STATES.map((state) => [normalizeLocationValue(state.label), state.label]),
+);
+
 function detectStateFromAddress(address?: Location.LocationGeocodedAddress | null): string | null {
   if (!address) return null;
   const candidates = [address.region, address.subregion, address.city, address.district];
   for (const candidate of candidates) {
     const normalizedCandidate = normalizeLocationValue(candidate);
     if (!normalizedCandidate) continue;
-    const match = INDIAN_STATES.find((state) => normalizeLocationValue(state.label) === normalizedCandidate);
-    if (match) {
-      return match.label;
-    }
+    const matchedState = STATE_NAME_LOOKUP.get(normalizedCandidate);
+    if (matchedState) return matchedState;
   }
   return null;
 }
@@ -279,7 +281,7 @@ export default function SuggestionsScreen() {
       const message =
         error instanceof Error && error.message.toLowerCase().includes('timeout')
           ? 'Location request timed out. Move to an open area and try again.'
-          : 'Unable to fetch live location. Please try again.';
+          : 'Unable to fetch live location. Check GPS settings and internet connection, then try again.';
       setLocationStatusText(message);
     } finally {
       setIsDetectingLocation(false);

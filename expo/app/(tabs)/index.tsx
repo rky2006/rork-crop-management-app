@@ -14,6 +14,11 @@ import AlertsBanner from '@/components/AlertsBanner';
 import { INDIAN_STATES } from '@/mocks/cropSuggestions';
 import { fetchRealtimeWeatherForecast, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from '@/mocks/weatherForecast';
 
+const WEATHER_ADVISOR_THRESHOLDS = {
+  heavyRain: 60,
+  moderateRain: 30,
+} as const;
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { crops, activeCrops, completedCrops, allActivities, isLoading, cropsQuery } = useCrops();
@@ -30,9 +35,9 @@ export default function DashboardScreen() {
   const dashboardForecast = weatherQuery.data ?? fallbackForecast;
   const weatherSummary = dashboardForecast[0];
   const rainPeak = dashboardForecast.reduce((max, day) => Math.max(max, day.rain), 0);
-  const weatherAdvisorText = rainPeak >= 60
+  const weatherAdvisorText = rainPeak >= WEATHER_ADVISOR_THRESHOLDS.heavyRain
     ? 'Heavy rain expected soon. Delay spray and clear water drainage in fields.'
-    : rainPeak >= 30
+    : rainPeak >= WEATHER_ADVISOR_THRESHOLDS.moderateRain
     ? 'Moderate rain possible this week. Adjust irrigation in shorter cycles.'
     : 'Dry weather likely. Plan irrigation early morning for best moisture retention.';
 
