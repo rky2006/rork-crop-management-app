@@ -98,7 +98,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.quickActionCard}
-          onPress={() => router.push('/suggestions')}
+          onPress={() => router.push('/weather')}
           activeOpacity={0.8}
           accessibilityRole="button"
           accessibilityLabel="View live weather forecast"

@@ -457,7 +457,11 @@ export default function SuggestionsScreen() {
             {isDetectingLocation ? 'Detecting location…' : 'Use live location'}
           </Text>
         </TouchableOpacity>
-        {locationStatusText ? <Text style={styles.locationStatusText}>{locationStatusText}</Text> : null}
+        {locationStatusText ? (
+          <Text style={styles.locationStatusText} accessibilityLiveRegion="polite">
+            {locationStatusText}
+          </Text>
+        ) : null}
 
         {showStatePicker && (
           <ScrollView
@@ -502,7 +506,11 @@ export default function SuggestionsScreen() {
           {!selectedState && (
             <Text style={styles.sectionHint}>Select your state or use live location to improve recommendations.</Text>
           )}
-          {weatherQuery.isError && <Text style={styles.locationStatusText}>Could not fetch live weather. Showing fallback forecast.</Text>}
+          {weatherQuery.isError && (
+            <Text style={styles.locationStatusText} accessibilityLiveRegion="assertive">
+              Could not fetch live weather. Showing fallback forecast.
+            </Text>
+          )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.forecastScroll}>
             {forecastData.map((item: ForecastDay) => (
               <View key={item.day} style={styles.forecastCard}>
