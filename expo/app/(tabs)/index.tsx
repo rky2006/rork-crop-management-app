@@ -1,21 +1,40 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Sprout, TrendingUp, CheckCircle, Clock, Wheat, Leaf } from 'lucide-react-native';
+import { Plus, Sprout, TrendingUp, CheckCircle, Clock, Wheat, Leaf, CloudRain, MapPin, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery } from '@tanstack/react-query';
 import { useCrops } from '@/contexts/CropContext';
 import { useUser } from '@/contexts/UserContext';
-import { STAGE_LABELS, STAGE_COLORS, CATEGORY_LABELS } from '@/types/crop';
+import { STAGE_LABELS, STAGE_COLORS } from '@/types/crop';
 import { formatDate, daysFromNow, getProgressPercent } from '@/utils/helpers';
 import Colors from '@/constants/colors';
 import { Image } from 'expo-image';
 import AlertsBanner from '@/components/AlertsBanner';
+import { INDIAN_STATES } from '@/mocks/cropSuggestions';
+import { fetchRealtimeWeatherForecast, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from '@/mocks/weatherForecast';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { crops, activeCrops, completedCrops, allActivities, isLoading, cropsQuery } = useCrops();
-  const { username } = useUser();
+  const { username, location } = useUser();
   const [refreshing, setRefreshing] = useState(false);
+  const selectedState = INDIAN_STATES.find((state) => state.label === location) ?? null;
+  const fallbackForecast = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
+  const weatherQuery = useQuery({
+    queryKey: ['dashboard-weather', selectedState?.region ?? null],
+    queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
+  const dashboardForecast = weatherQuery.data ?? fallbackForecast;
+  const weatherSummary = dashboardForecast[0];
+  const rainPeak = dashboardForecast.reduce((max, day) => Math.max(max, day.rain), 0);
+  const weatherAdvisorText = rainPeak >= 60
+    ? 'Heavy rain expected soon. Delay spray and clear water drainage in fields.'
+    : rainPeak >= 30
+    ? 'Moderate rain possible this week. Adjust irrigation in shorter cycles.'
+    : 'Dry weather likely. Plan irrigation early morning for best moisture retention.';
 
   const stats = useMemo(() => {
     const upcomingHarvests = activeCrops.filter(c => {
@@ -45,7 +64,7 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
     >
       <LinearGradient
-        colors={['#2D6A4F', '#40916C', '#52B788']}
+        colors={['#1B4332', '#2D6A4F', '#40916C']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
@@ -66,6 +85,16 @@ export default function DashboardScreen() {
           <Plus size={22} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
+      <View style={styles.quickActionsRow}>
+        <TouchableOpacity style={styles.quickActionCard} onPress={() => router.push('/suggestions')} activeOpacity={0.8}>
+          <Sparkles size={16} color={Colors.primary} />
+          <Text style={styles.quickActionText}>Advisor</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickActionCard} onPress={() => router.push('/suggestions')} activeOpacity={0.8}>
+          <CloudRain size={16} color={Colors.info} />
+          <Text style={styles.quickActionText}>Live Weather</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: '#EFF8F1' }]}>
@@ -95,6 +124,39 @@ export default function DashboardScreen() {
           <AlertsBanner crops={activeCrops} />
         </View>
       )}
+
+      <View style={styles.section}>
+        <LinearGradient
+          colors={['#F0F9FF', '#ECFDF5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.weatherAdvisorCard}
+        >
+          <View style={styles.weatherAdvisorHeader}>
+            <View style={styles.weatherAdvisorIcon}>
+              <CloudRain size={16} color={Colors.info} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.weatherAdvisorTitle}>Live Weather Advisor</Text>
+              <Text style={styles.weatherAdvisorSubtitle}>
+                {weatherQuery.isSuccess ? 'Updated every 15 minutes' : 'Using latest available data'}
+              </Text>
+            </View>
+          </View>
+          {location && (
+            <View style={styles.locationRow}>
+              <MapPin size={13} color={Colors.textMuted} />
+              <Text style={styles.locationText}>{location}</Text>
+            </View>
+          )}
+          {weatherSummary && (
+            <Text style={styles.weatherTodayText}>
+              Today: {weatherSummary.condition} · {weatherSummary.temp} · Rain {weatherSummary.rain}%
+            </Text>
+          )}
+          <Text style={styles.weatherAdvisorText}>{weatherAdvisorText}</Text>
+        </LinearGradient>
+      </View>
 
       {activeCrops.length > 0 && (
         <View style={styles.section}>
@@ -262,6 +324,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 12,
   },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  quickActionCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  quickActionText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -290,6 +375,55 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
     paddingHorizontal: 16,
+  },
+  weatherAdvisorCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D7EAF8',
+    padding: 14,
+    gap: 8,
+  },
+  weatherAdvisorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  weatherAdvisorIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.info + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weatherAdvisorTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  weatherAdvisorSubtitle: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  weatherTodayText: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '600' as const,
+  },
+  weatherAdvisorText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   sectionHeader: {
     flexDirection: 'row',

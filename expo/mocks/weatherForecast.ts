@@ -8,6 +8,11 @@ export interface ForecastDay {
   wind: string;
 }
 
+export interface WeatherCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
 const REGION_COORDINATES: Record<IndianRegion, { latitude: number; longitude: number }> = {
   northern_plains: { latitude: 28.6139, longitude: 77.2090 },
   northwest: { latitude: 26.9124, longitude: 75.7873 },
@@ -88,11 +93,28 @@ function formatWind(speed: number): string {
   return `${Math.round(speed)} km/h`;
 }
 
-export async function fetchRealtimeWeatherForecast(region: IndianRegion | null): Promise<ForecastDay[]> {
-  const coordinates = region ? REGION_COORDINATES[region] : DEFAULT_COORDINATES;
+function resolveCoordinates(
+  region: IndianRegion | null,
+  coordinates?: WeatherCoordinates | null,
+): WeatherCoordinates {
+  if (
+    coordinates &&
+    Number.isFinite(coordinates.latitude) &&
+    Number.isFinite(coordinates.longitude)
+  ) {
+    return coordinates;
+  }
+  return region ? REGION_COORDINATES[region] : DEFAULT_COORDINATES;
+}
+
+export async function fetchRealtimeWeatherForecast(
+  region: IndianRegion | null,
+  coordinates?: WeatherCoordinates | null,
+): Promise<ForecastDay[]> {
+  const targetCoordinates = resolveCoordinates(region, coordinates);
   const params = new URLSearchParams({
-    latitude: String(coordinates.latitude),
-    longitude: String(coordinates.longitude),
+    latitude: String(targetCoordinates.latitude),
+    longitude: String(targetCoordinates.longitude),
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max',
     timezone: 'auto',
     forecast_days: '4',
