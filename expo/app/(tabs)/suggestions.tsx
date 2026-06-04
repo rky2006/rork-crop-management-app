@@ -269,7 +269,7 @@ export default function SuggestionsScreen() {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       });
-      const detectedState = detectStateFromAddress(reverseGeocode[0]);
+      const detectedState = reverseGeocode.length > 0 ? detectStateFromAddress(reverseGeocode[0]) : null;
       if (detectedState) {
         setLocation(detectedState);
         setLocationStatusText(`Live location detected: ${detectedState}`);
