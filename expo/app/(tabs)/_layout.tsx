@@ -1,66 +1,54 @@
 import { Tabs } from "expo-router";
-import { LayoutDashboard, Wheat, ClipboardList, ScanLine, Lightbulb } from "lucide-react-native";
+import { House, MessageSquareMore, Sprout } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
+
+const TAB_BAR_HEIGHT = 74;
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
+        headerShown: false,
+        tabBarActiveTintColor: "#F68A1E",
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.borderLight,
+          height: TAB_BAR_HEIGHT,
+          paddingBottom: 10,
+          paddingTop: 8,
         },
-        headerStyle: {
-          backgroundColor: Colors.surface,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500",
         },
-        headerTintColor: Colors.text,
-        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} />,
+          title: "Home",
+          tabBarIcon: ({ color, size }) => <House size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="crops"
         options={{
-          title: "My Crops",
-          tabBarIcon: ({ color, size }) => <Wheat size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="activities"
-        options={{
-          title: "Activities",
-          tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="disease"
-        options={{
-          title: "Disease Scan",
-          tabBarIcon: ({ color, size }) => <ScanLine size={size} color={color} />,
+          title: "SmartFarm",
+          tabBarIcon: ({ color, size }) => <Sprout size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="suggestions"
         options={{
-          title: "Crop Advisor",
-          tabBarIcon: ({ color, size }) => <Lightbulb size={size} color={color} />,
+          title: "KrishiExpert",
+          tabBarIcon: ({ color, size }) => <MessageSquareMore size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="weather"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen name="activities" options={{ href: null }} />
+      <Tabs.Screen name="disease" options={{ href: null }} />
+      <Tabs.Screen name="weather" options={{ href: null }} />
     </Tabs>
   );
 }

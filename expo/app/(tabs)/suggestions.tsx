@@ -4,13 +4,15 @@ import {
   TextInput, ActivityIndicator, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf, MessageCircle, Mic, MicOff, Send, CloudDrizzle, Wind } from 'lucide-react-native';
+import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf, MessageCircle, Mic, MicOff, Send, CloudDrizzle, Wind, LocateFixed } from 'lucide-react-native';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
   type ExpoSpeechRecognitionErrorEvent,
   type ExpoSpeechRecognitionResultEvent,
 } from 'expo-speech-recognition';
+import * as Location from 'expo-location';
+import { useQuery } from '@tanstack/react-query';
 import { useUser } from '@/contexts/UserContext';
 import {
   CROP_PROFILES,
@@ -23,7 +25,7 @@ import {
   Season,
 } from '@/mocks/cropSuggestions';
 import { ChatMessage, createBotWelcomeMessage, getFarmerChatbotReply } from '@/mocks/farmerChatbot';
-import { ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST } from '@/mocks/weatherForecast';
+import { fetchRealtimeWeatherForecast, ForecastDay, REGION_WEATHER_FORECAST, WEATHER_FORECAST, WeatherCoordinates } from '@/mocks/weatherForecast';
 import { SoilType, SOIL_TYPE_LABELS } from '@/types/crop';
 import Colors from '@/constants/colors';
 import { SPEECH_LANGUAGE_LOCALE, getSupportedLanguage } from '@/constants/languages';
@@ -85,6 +87,26 @@ function getScoreLabel(score: number): string {
   if (score >= 55) return 'Good';
   if (score >= 40) return 'Fair';
   return 'Low';
+}
+
+function normalizeLocationValue(value?: string | null): string {
+  return (value ?? '').toLowerCase().replace(/[^a-z]/g, '');
+}
+
+const STATE_NAME_LOOKUP = new Map(
+  INDIAN_STATES.map((state) => [normalizeLocationValue(state.label), state.label]),
+);
+
+function detectStateFromAddress(address?: Location.LocationGeocodedAddress | null): string | null {
+  if (!address) return null;
+  const candidates = [address.region, address.subregion, address.city, address.district];
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeLocationValue(candidate);
+    if (!normalizedCandidate) continue;
+    const matchedState = STATE_NAME_LOOKUP.get(normalizedCandidate);
+    if (matchedState) return matchedState;
+  }
+  return null;
 }
 
 function SuggestionCard({ suggestion }: { suggestion: CropSuggestion }) {
@@ -181,10 +203,27 @@ export default function SuggestionsScreen() {
   const [chatInput, setChatInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [locationStatusText, setLocationStatusText] = useState<string | null>(null);
+  const [liveCoordinates, setLiveCoordinates] = useState<WeatherCoordinates | null>(null);
   const messageIdCounterRef = useRef(0);
 
   const selectedState = INDIAN_STATES.find(s => s.label === location) ?? null;
-  const forecastData = selectedState ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST) : WEATHER_FORECAST;
+  const fallbackForecast = selectedState
+    ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST)
+    : WEATHER_FORECAST;
+  const weatherQuery = useQuery({
+    queryKey: [
+      'weather-advisor-live',
+      selectedState?.region ?? null,
+      liveCoordinates?.latitude?.toFixed(3) ?? null,
+      liveCoordinates?.longitude?.toFixed(3) ?? null,
+    ],
+    queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null, liveCoordinates),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
+  const forecastData = weatherQuery.data ?? fallbackForecast;
 
   const handleSelectState = useCallback((stateName: string) => {
     setLocation(stateName);
@@ -209,6 +248,45 @@ export default function SuggestionsScreen() {
       setIsAnalyzing(false);
     }, 400);
   }, [season, soilType, ph, waterEc, nitrogen, selectedState]);
+
+  const handleUseLiveLocation = useCallback(async () => {
+    setIsDetectingLocation(true);
+    setLocationStatusText(null);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setLocationStatusText('Location permission denied. Please enable location access.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setLiveCoordinates({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      const reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      const detectedState = reverseGeocode.length > 0 ? detectStateFromAddress(reverseGeocode[0]) : null;
+      if (detectedState) {
+        setLocation(detectedState);
+        setLocationStatusText(`Live location detected: ${detectedState}`);
+      } else {
+        setLocationStatusText('Live location found. State could not be matched automatically.');
+      }
+      setHasAnalyzed(false);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.toLowerCase().includes('timeout')
+          ? 'Location request timed out. Move to an open area and try again.'
+          : 'Unable to fetch live location. Check GPS settings and internet connection, then try again.';
+      setLocationStatusText(message);
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }, [setLocation]);
 
   const topSuggestions = useMemo(() => suggestions.filter(s => s.score >= 40), [suggestions]);
   const otherSuggestions = useMemo(() => suggestions.filter(s => s.score < 40), [suggestions]);
@@ -368,6 +446,24 @@ export default function SuggestionsScreen() {
           </Text>
           {showStatePicker ? <ChevronUp size={16} color={Colors.textMuted} /> : <ChevronDown size={16} color={Colors.textMuted} />}
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.liveLocationButton}
+          onPress={handleUseLiveLocation}
+          activeOpacity={0.85}
+          disabled={isDetectingLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Use live location to auto-detect your state and fetch local weather"
+        >
+          {isDetectingLocation ? <ActivityIndicator size="small" color={Colors.info} /> : <LocateFixed size={15} color={Colors.info} />}
+          <Text style={styles.liveLocationButtonText}>
+            {isDetectingLocation ? 'Detecting location…' : 'Use live location'}
+          </Text>
+        </TouchableOpacity>
+        {locationStatusText ? (
+          <Text style={styles.locationStatusText} accessibilityLiveRegion="polite">
+            {locationStatusText}
+          </Text>
+        ) : null}
 
         {showStatePicker && (
           <ScrollView
@@ -404,8 +500,18 @@ export default function SuggestionsScreen() {
               {selectedState ? `Weather Forecast · ${location}` : 'Weather Forecast'}
             </Text>
           </View>
+          <Text style={styles.sectionHint}>
+            {weatherQuery.isSuccess
+              ? 'Live weather advisor refreshes every 15 minutes.'
+              : 'Using latest available weather data.'}
+          </Text>
           {!selectedState && (
-            <Text style={styles.sectionHint}>Select your state to get region-specific forecast.</Text>
+            <Text style={styles.sectionHint}>Select your state or use live location to improve recommendations.</Text>
+          )}
+          {weatherQuery.isError && (
+            <Text style={styles.locationStatusText} accessibilityLiveRegion="assertive">
+              Could not fetch live weather. Showing fallback forecast.
+            </Text>
           )}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.forecastScroll}>
             {forecastData.map((item: ForecastDay) => (
@@ -694,6 +800,29 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  liveLocationButton: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.info + '12',
+    borderWidth: 1,
+    borderColor: Colors.info + '22',
+  },
+  liveLocationButtonText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.info,
+  },
+  locationStatusText: {
+    marginTop: 7,
+    fontSize: 11,
+    color: Colors.textMuted,
   },
   locationText: {
     fontSize: 15,
