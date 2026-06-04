@@ -1,15 +1,41 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Colors from '@/constants/colors';
-import { getMarketPrice, formatPriceRange } from '@/mocks/marketPrices';
+import { getLiveMandiPrice, getMarketPrice, formatPriceRange, type LiveMandiPrice } from '@/mocks/marketPrices';
 
 interface Props {
   cropName: string;
 }
 
 export default function MarketPriceCard({ cropName }: Props) {
-  const price = getMarketPrice(cropName);
+  const price = useMemo(() => getMarketPrice(cropName), [cropName]);
+  const [liveMandiPrice, setLiveMandiPrice] = useState<LiveMandiPrice | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!price || price.unit !== 'per_quintal') {
+      setLiveMandiPrice(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    getLiveMandiPrice(cropName).then(result => {
+      if (active) setLiveMandiPrice(result);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [cropName, price]);
+
   if (!price) return null;
+
+  const mandiRange = liveMandiPrice
+    ? `₹${liveMandiPrice.mandiMin.toLocaleString('en-IN')} – ₹${liveMandiPrice.mandiMax.toLocaleString('en-IN')}/qtl`
+    : formatPriceRange(price);
+  const mandiLabel = liveMandiPrice ? 'Live Mandi Price' : 'Typical Mandi Price';
 
   return (
     <View style={styles.container}>
@@ -25,11 +51,17 @@ export default function MarketPriceCard({ cropName }: Props) {
           </View>
         )}
         <View style={[styles.cell, price.msp !== undefined && styles.cellRight]}>
-          <Text style={styles.cellLabel}>Typical Mandi Price</Text>
+          <Text style={styles.cellLabel}>{mandiLabel}</Text>
           <Text style={[styles.cellValue, { color: Colors.accent }]}>
-            {formatPriceRange(price)}
+            {mandiRange}
           </Text>
-          {price.season && <Text style={styles.cellSub}>{price.season} season</Text>}
+          {liveMandiPrice ? (
+            <Text style={styles.cellSub}>
+              {liveMandiPrice.market}, {liveMandiPrice.district}
+            </Text>
+          ) : (
+            price.season && <Text style={styles.cellSub}>{price.season} season</Text>
+          )}
         </View>
       </View>
       {price.note && (
@@ -38,9 +70,11 @@ export default function MarketPriceCard({ cropName }: Props) {
         </View>
       )}
       <Text style={styles.footer}>
-        Prices are indicative mandi averages. Check{' '}
-        <Text style={styles.footerHighlight}>e-NAM (enam.gov.in)</Text>
-        {' '}for live rates before selling.
+        {liveMandiPrice
+          ? `Live mandi data fetched from data.gov.in (${liveMandiPrice.state}).`
+          : 'Prices are indicative mandi averages. Check '}
+        {!liveMandiPrice && <Text style={styles.footerHighlight}>e-NAM (enam.gov.in)</Text>}
+        {!liveMandiPrice && ' for live rates before selling.'}
       </Text>
     </View>
   );

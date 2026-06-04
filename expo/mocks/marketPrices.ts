@@ -14,6 +14,30 @@ export interface CropMarketPrice {
   note?: string;
 }
 
+export interface LiveMandiPrice {
+  mandiMin: number;
+  mandiMax: number;
+  market: string;
+  district: string;
+  state: string;
+  unit: 'per_quintal';
+  fetchedAt: string;
+}
+
+const DATA_GOV_MANDI_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
+const DATA_GOV_DEMO_API_KEY = '579b464db66ec23bdd000001591697ac';
+
+const LIVE_MANDI_COMMODITY_MAP: Record<string, string> = {
+  rice: 'Paddy(Dhan)(Common)',
+  mustard: 'Mustard',
+  'tur/arhar': 'Arhar (Tur/Red Gram)(Whole)',
+  sesame: 'Sesamum(Sesame,Gingelly,Til)',
+  'sesame (til)': 'Sesamum(Sesame,Gingelly,Til)',
+  coriander: 'Coriander(Leaves)',
+  'cumin (jeera)': 'Cummin Seed(Jeera)',
+  chilli: 'Chilly Capsicum',
+};
+
 const MARKET_PRICES: CropMarketPrice[] = [
   // Grains
   { cropName: 'Wheat', msp: 2275, mandiMin: 2200, mandiMax: 2700, unit: 'per_quintal', season: 'Rabi', note: 'MSP 2024-25: ₹2,275/qtl' },
@@ -64,6 +88,18 @@ const priceMap = new Map<string, CropMarketPrice>(
   MARKET_PRICES.map(p => [p.cropName.toLowerCase(), p])
 );
 
+function normalizeCommodity(cropName: string): string {
+  const normalized = cropName.trim().toLowerCase();
+  return LIVE_MANDI_COMMODITY_MAP[normalized] ?? cropName;
+}
+
+function parseNumericPrice(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  if (typeof value !== 'string') return null;
+  const parsed = Number(value.replace(/,/g, '').trim());
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 export function getMarketPrice(cropName: string): CropMarketPrice | null {
   return priceMap.get(cropName.toLowerCase()) ?? null;
 }
@@ -77,4 +113,46 @@ export function getDefaultYieldUnit(cropName: string): 'quintal' | 'kg' | 'tonne
   const price = getMarketPrice(cropName);
   if (!price) return 'quintal';
   return price.unit === 'per_kg' ? 'kg' : price.unit === 'per_tonne' ? 'tonne' : 'quintal';
+}
+
+export async function getLiveMandiPrice(cropName: string): Promise<LiveMandiPrice | null> {
+  const staticPrice = getMarketPrice(cropName);
+  if (!staticPrice || staticPrice.unit !== 'per_quintal') return null;
+
+  try {
+    const params = new URLSearchParams({
+      format: 'json',
+      limit: '10',
+      'api-key': process.env.EXPO_PUBLIC_DATA_GOV_API_KEY ?? DATA_GOV_DEMO_API_KEY,
+      'filters[commodity]': normalizeCommodity(cropName),
+    });
+
+    const response = await fetch(`${DATA_GOV_MANDI_API_URL}?${params.toString()}`);
+    if (!response.ok) return null;
+
+    const data = await response.json() as { records?: Array<Record<string, unknown>> };
+    const latestRecord = data.records?.find(record =>
+      parseNumericPrice(record.min_price) !== null ||
+      parseNumericPrice(record.max_price) !== null ||
+      parseNumericPrice(record.modal_price) !== null
+    );
+
+    if (!latestRecord) return null;
+
+    const minPrice = parseNumericPrice(latestRecord.min_price) ?? parseNumericPrice(latestRecord.modal_price);
+    const maxPrice = parseNumericPrice(latestRecord.max_price) ?? parseNumericPrice(latestRecord.modal_price);
+    if (minPrice === null || maxPrice === null) return null;
+
+    return {
+      mandiMin: Math.min(minPrice, maxPrice),
+      mandiMax: Math.max(minPrice, maxPrice),
+      market: typeof latestRecord.market === 'string' ? latestRecord.market : 'Unknown market',
+      district: typeof latestRecord.district === 'string' ? latestRecord.district : 'Unknown district',
+      state: typeof latestRecord.state === 'string' ? latestRecord.state : 'Unknown state',
+      unit: 'per_quintal',
+      fetchedAt: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
 }
