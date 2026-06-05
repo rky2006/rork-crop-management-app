@@ -14,6 +14,13 @@ import {
   WeatherCoordinates,
 } from "@/mocks/weatherForecast";
 
+const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const TIP_UNAVAILABLE_DEFAULT = "Forecast data is unavailable. Use your live location to view local weather.";
+const TIP_UNAVAILABLE_LIVE = "Forecast data is unavailable for your current location. Please try again shortly.";
+const TIP_HIGH_RAIN =
+  "has high rain chances (%). Postpone irrigation and keep harvested produce covered.";
+const TIP_LOW_RAIN = "No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.";
+
 function detectStateFromAddress(address?: Location.LocationGeocodedAddress | null): string | null {
   if (!address) return null;
   const possible = [address.region, address.subregion, address.district]
@@ -46,7 +53,7 @@ export default function WeatherScreen() {
     ],
     queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null, liveCoordinates),
     staleTime: 5 * 60 * 1000,
-    refetchInterval: 15 * 60 * 1000,
+    refetchInterval: WEATHER_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
   });
 
@@ -94,13 +101,11 @@ export default function WeatherScreen() {
 
   let tipMessage: string;
   if (!highestRainDay) {
-    tipMessage = liveCoordinates
-      ? "Forecast data is unavailable for your current location. Please try again shortly."
-      : "Forecast data is unavailable. Use your live location to view local weather.";
+    tipMessage = liveCoordinates ? TIP_UNAVAILABLE_LIVE : TIP_UNAVAILABLE_DEFAULT;
   } else if (highestRainDay.rain >= 50) {
-    tipMessage = `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`;
+    tipMessage = `${highestRainDay.day} ${TIP_HIGH_RAIN.replace("%", `${highestRainDay.rain}%`)}`;
   } else {
-    tipMessage = "No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.";
+    tipMessage = TIP_LOW_RAIN;
   }
 
   return (
@@ -111,7 +116,7 @@ export default function WeatherScreen() {
           <Text style={styles.headerTitle}>Weather Forecast</Text>
           <Text style={styles.headerSubtitle}>
             {weatherQuery.isSuccess
-              ? "Live weather updates every 15 minutes for your location."
+              ? `Live weather updates every ${WEATHER_REFRESH_INTERVAL_MS / 60000} minutes for your location.`
               : "Fetch live weather for your farm and plan field activities."}
           </Text>
         </View>
