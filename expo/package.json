@@ -6,7 +6,9 @@
     "start": "bunx rork start -p xku5blbpyi92v9x9cis9f --tunnel",
     "start-web": "bunx rork start -p xku5blbpyi92v9x9cis9f --web --tunnel",
     "start-web-dev": "DEBUG=expo* bunx rork start -p xku5blbpyi92v9x9cis9f --web --tunnel",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -20,6 +22,7 @@
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.11",
     "expo-crypto": "~15.0.9",
+    "expo-device": "~8.0.10",
     "expo-font": "~14.0.10",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
@@ -27,6 +30,7 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.10",
     "expo-location": "~19.0.8",
+    "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.17",
     "expo-speech-recognition": "^3.1.3",
     "expo-splash-screen": "~31.0.12",

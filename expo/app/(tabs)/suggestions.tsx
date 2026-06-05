@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Platform,
+  TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp, Check, Info, Leaf, MessageCircle, Mic, MicOff, Send, CloudDrizzle, Wind, LocateFixed } from 'lucide-react-native';
+import {
+  Lightbulb, MapPin, Cloud, FlaskConical, ChevronDown, ChevronUp,
+  Check, Info, Leaf, MessageCircle, Mic, MicOff, Send,
+  CloudDrizzle, Wind, LocateFixed, Sparkles, Bot
+} from 'lucide-react-native';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -14,6 +18,7 @@ import {
 import * as Location from 'expo-location';
 import { useQuery } from '@tanstack/react-query';
 import { useUser } from '@/contexts/UserContext';
+import { useCrops } from '@/contexts/CropContext';
 import {
   CROP_PROFILES,
   INDIAN_STATES,
@@ -32,86 +37,46 @@ import { SPEECH_LANGUAGE_LOCALE, getSupportedLanguage } from '@/constants/langua
 
 const SOIL_TYPES: SoilType[] = ['clay', 'sandy', 'loamy', 'silt', 'red', 'black', 'alluvial', 'laterite'];
 const SEASONS: Season[] = ['kharif', 'rabi', 'zaid'];
-const MAX_CHAT_MESSAGES = 8;
-
-const SEASON_COLORS: Record<Season, string> = {
-  kharif: '#16A34A',
-  rabi: '#0284C7',
-  zaid: '#D97706',
-};
+const MAX_CHAT_MESSAGES = 15;
 
 const CHAT_COPY = {
   en: {
-    androidOnly: 'Voice input is currently available on Android only.',
-    unavailable: 'Speech recognition is not available on this device.',
-    permission: 'Please grant microphone permission to use voice input.',
-    title: 'Farmer Chat Assistant',
-    subtitle: 'Ask farming queries in your language and get suggestions.',
-    placeholder: 'Type your farming question...',
+    chatTitle: 'KrishiChat AI',
+    chatSubtitle: 'Your 24/7 Farming Assistant',
+    advisorTitle: 'Crop Advisor',
+    advisorSubtitle: 'Scientific recommendations',
+    placeholder: 'Ask about seeds, pests, or weather...',
+    quickQuestions: ['What should I sow now?', 'Pest control tips', 'Fertilizer for Rice'],
   },
   hi: {
-    androidOnly: 'वॉइस इनपुट अभी केवल Android पर उपलब्ध है।',
-    unavailable: 'आपके डिवाइस में स्पीच रिकग्निशन उपलब्ध नहीं है।',
-    permission: 'वॉइस उपयोग के लिए माइक्रोफोन अनुमति दें।',
-    title: 'किसान चैट सहायक',
-    subtitle: 'अपनी भाषा में सवाल पूछें और सुझाव पाएँ।',
-    placeholder: 'अपना सवाल लिखें...',
+    chatTitle: 'कृषिचैट AI',
+    chatSubtitle: 'आपका 24/7 खेती सहायक',
+    advisorTitle: 'फसल सलाहकार',
+    advisorSubtitle: 'वैज्ञानिक सिफारिशें',
+    placeholder: 'बीज, कीट या मौसम के बारे में पूछें...',
+    quickQuestions: ['अभी क्या बोना चाहिए?', 'कीट नियंत्रण टिप्स', 'धान के लिए खाद'],
   },
   gu: {
-    androidOnly: 'વૉઇસ ઇનપુટ હાલમાં માત્ર Android પર ઉપલબ્ધ છે.',
-    unavailable: 'તમારા ઉપકરણમાં સ્પીચ રિકગ્નિશન ઉપલબ્ધ નથી.',
-    permission: 'વૉઇસ ઇનપુટ માટે કૃપા કરીને માઇક્રોફોનની પરવાનગી આપો.',
-    title: 'ખેડૂત ચેટ સહાયક',
-    subtitle: 'તમારી ભાષામાં પ્રશ્ન પૂછો અને સૂચનો મેળવો.',
-    placeholder: 'તમારો ખેતી સંબંધિત પ્રશ્ન લખો...',
+    chatTitle: 'કૃષિચેટ AI',
+    chatSubtitle: 'તમારા 24/7 ખેતી સહાયક',
+    advisorTitle: 'પાક સલાહકાર',
+    advisorSubtitle: 'વૈજ્ઞાનિક ભલામણો',
+    placeholder: 'બીજ, જીવાત કે હવામાન વિશે પૂછો...',
+    quickQuestions: ['અત્યારે શું વાવવું જોઈએ?', 'જીવાત નિયંત્રણ ટિપ્સ', 'ડાંગર માટે ખાતર'],
   },
   mr: {
-    androidOnly: 'व्हॉइस इनपुट सध्या फक्त Android वर उपलब्ध आहे.',
-    unavailable: 'तुमच्या डिव्हाइसवर स्पीच रेकॉग्निशन उपलब्ध नाही.',
-    permission: 'व्हॉइस इनपुटसाठी कृपया मायक्रोफोनची परवानगी द्या.',
-    title: 'शेतकरी चॅट सहाय्यक',
-    subtitle: 'तुमच्या भाषेत प्रश्न विचारा आणि सूचना मिळवा.',
-    placeholder: 'तुमचा शेतीविषयक प्रश्न लिहा...',
+    chatTitle: 'कृषीचॅट AI',
+    chatSubtitle: 'तुमचा 24/7 शेती सहाय्यક',
+    advisorTitle: 'पीक सल्लागार',
+    advisorSubtitle: 'वैज्ञानिक शिफारसी',
+    placeholder: 'बियाणे, कीड किंवा हवामानाबद्दल विचारा...',
+    quickQuestions: ['आता काय पेरावे?', 'कीड नियंत्रण टिप्स', 'भातासाठी खत'],
   },
-} as const;
-
-function getScoreColor(score: number): string {
-  if (score >= 75) return '#16A34A';
-  if (score >= 55) return '#65A30D';
-  if (score >= 40) return '#D97706';
-  return '#94A3B8';
-}
-
-function getScoreLabel(score: number): string {
-  if (score >= 75) return 'Excellent';
-  if (score >= 55) return 'Good';
-  if (score >= 40) return 'Fair';
-  return 'Low';
-}
-
-function normalizeLocationValue(value?: string | null): string {
-  return (value ?? '').toLowerCase().replace(/[^a-z]/g, '');
-}
-
-const STATE_NAME_LOOKUP = new Map(
-  INDIAN_STATES.map((state) => [normalizeLocationValue(state.label), state.label]),
-);
-
-function detectStateFromAddress(address?: Location.LocationGeocodedAddress | null): string | null {
-  if (!address) return null;
-  const candidates = [address.region, address.subregion, address.city, address.district];
-  for (const candidate of candidates) {
-    const normalizedCandidate = normalizeLocationValue(candidate);
-    if (!normalizedCandidate) continue;
-    const matchedState = STATE_NAME_LOOKUP.get(normalizedCandidate);
-    if (matchedState) return matchedState;
-  }
-  return null;
-}
+} as any;
 
 function SuggestionCard({ suggestion }: { suggestion: CropSuggestion }) {
   const [expanded, setExpanded] = useState(false);
-  const scoreColor = getScoreColor(suggestion.score);
+  const scoreColor = suggestion.score >= 75 ? '#16A34A' : suggestion.score >= 40 ? '#D97706' : '#94A3B8';
 
   return (
     <TouchableOpacity
@@ -122,63 +87,20 @@ function SuggestionCard({ suggestion }: { suggestion: CropSuggestion }) {
       <View style={styles.suggCardTop}>
         <Image source={{ uri: suggestion.crop.imageUrl }} style={styles.suggImage} contentFit="cover" />
         <View style={styles.suggInfo}>
-          <View style={styles.suggTitleRow}>
-            <Text style={styles.suggName}>{suggestion.crop.name}</Text>
-            <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '18' }]}>
-              <Text style={[styles.scoreText, { color: scoreColor }]}>{suggestion.score}%</Text>
-            </View>
+          <Text style={styles.suggName}>{suggestion.crop.name}</Text>
+          <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '18' }]}>
+            <Text style={[styles.scoreText, { color: scoreColor }]}>{suggestion.score}% Match</Text>
           </View>
-          <Text style={[styles.scoreLabel, { color: scoreColor }]}>{getScoreLabel(suggestion.score)} Match</Text>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{suggestion.crop.category}</Text>
-          </View>
-          <Text style={styles.suggDays}>~{suggestion.crop.avgDaysToHarvest} days to harvest</Text>
         </View>
         {expanded ? <ChevronUp size={16} color={Colors.textMuted} /> : <ChevronDown size={16} color={Colors.textMuted} />}
       </View>
-
-      {/* Score bar */}
-      <View style={styles.scoreBarBg}>
-        <View style={[styles.scoreBarFill, { width: `${suggestion.score}%`, backgroundColor: scoreColor }]} />
-      </View>
-
       {expanded && (
         <View style={styles.expandedSection}>
           <Text style={styles.expandDesc}>{suggestion.crop.description}</Text>
-
-          {suggestion.matchReasons.length > 0 && (
-            <View style={styles.reasonsBlock}>
-              <Text style={styles.reasonsTitle}>Why it suits you</Text>
-              {suggestion.matchReasons.map((r, i) => (
-                <View key={i} style={styles.reasonRow}>
-                  <Check size={12} color="#16A34A" />
-                  <Text style={styles.reasonText}>{r}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {suggestion.warnings.length > 0 && (
-            <View style={styles.warningsBlock}>
-              <Text style={styles.warningsTitle}>Considerations</Text>
-              {suggestion.warnings.map((w, i) => (
-                <View key={i} style={styles.warningRow}>
-                  <Info size={12} color={Colors.warning} />
-                  <Text style={styles.warningText}>{w}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.varietiesBlock}>
-            <Text style={styles.varietiesTitle}>Recommended Varieties</Text>
-            <View style={styles.varietiesRow}>
-              {suggestion.crop.topVarieties.slice(0, 4).map((v, i) => (
-                <View key={i} style={styles.varietyChip}>
-                  <Text style={styles.varietyText}>{v}</Text>
-                </View>
-              ))}
-            </View>
+          <View style={styles.reasonsBlock}>
+            {suggestion.matchReasons.map((r, i) => (
+              <View key={i} style={styles.reasonRow}><Check size={12} color="#16A34A" /><Text style={styles.reasonText}>{r}</Text></View>
+            ))}
           </View>
         </View>
       )}
@@ -187,1070 +109,275 @@ function SuggestionCard({ suggestion }: { suggestion: CropSuggestion }) {
 }
 
 export default function SuggestionsScreen() {
-  const { location, setLocation, language } = useUser();
+  const { location, setLocation, language, username } = useUser();
+  const { activeCrops } = useCrops();
 
-  const detectedSeason = useMemo(() => getCurrentSeason(), []);
-  const [season, setSeason] = useState<Season>(detectedSeason);
+  const [activeTab, setActiveTab] = useState<'chat' | 'advisor'>('chat');
+  const [season, setSeason] = useState<Season>(getCurrentSeason());
   const [soilType, setSoilType] = useState<SoilType | null>(null);
-  const [ph, setPh] = useState('');
-  const [waterEc, setWaterEc] = useState('');
-  const [nitrogen, setNitrogen] = useState('');
-  const [showStatePicker, setShowStatePicker] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<CropSuggestion[]>([]);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [createBotWelcomeMessage(language)]);
   const [chatInput, setChatInput] = useState('');
   const [isListening, setIsListening] = useState(false);
-  const [speechError, setSpeechError] = useState<string | null>(null);
-  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [locationStatusText, setLocationStatusText] = useState<string | null>(null);
-  const [liveCoordinates, setLiveCoordinates] = useState<WeatherCoordinates | null>(null);
-  const messageIdCounterRef = useRef(0);
+  const chatScrollRef = useRef<ScrollView>(null);
 
-  const selectedState = INDIAN_STATES.find(s => s.label === location) ?? null;
-  const fallbackForecast = selectedState
-    ? (REGION_WEATHER_FORECAST[selectedState.region] ?? WEATHER_FORECAST)
-    : WEATHER_FORECAST;
-  const weatherQuery = useQuery({
-    queryKey: [
-      'weather-advisor-live',
-      selectedState?.region ?? null,
-      liveCoordinates?.latitude?.toFixed(3) ?? null,
-      liveCoordinates?.longitude?.toFixed(3) ?? null,
-    ],
-    queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null, liveCoordinates),
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 15 * 60 * 1000,
-  });
-  const forecastData = weatherQuery.data ?? fallbackForecast;
-
-  const handleSelectState = useCallback((stateName: string) => {
-    setLocation(stateName);
-    setShowStatePicker(false);
-    setHasAnalyzed(false);
-  }, [setLocation]);
-
-  const handleAnalyze = useCallback(() => {
-    setIsAnalyzing(true);
-    // Slight delay for UX feedback
-    setTimeout(() => {
-      const results = getCropSuggestions({
-        season,
-        soilType,
-        ph,
-        waterEc,
-        nitrogen,
-        region: selectedState?.region ?? null,
-      });
-      setSuggestions(results);
-      setHasAnalyzed(true);
-      setIsAnalyzing(false);
-    }, 400);
-  }, [season, soilType, ph, waterEc, nitrogen, selectedState]);
-
-  const handleUseLiveLocation = useCallback(async () => {
-    setIsDetectingLocation(true);
-    setLocationStatusText(null);
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
-        setLocationStatusText('Location permission denied. Please enable location access.');
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLiveCoordinates({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-      const reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-      const detectedState = reverseGeocode.length > 0 ? detectStateFromAddress(reverseGeocode[0]) : null;
-      if (detectedState) {
-        setLocation(detectedState);
-        setLocationStatusText(`Live location detected: ${detectedState}`);
-      } else {
-        setLocationStatusText('Live location found. State could not be matched automatically.');
-      }
-      setHasAnalyzed(false);
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message.toLowerCase().includes('timeout')
-          ? 'Location request timed out. Move to an open area and try again.'
-          : 'Unable to fetch live location. Check GPS settings and internet connection, then try again.';
-      setLocationStatusText(message);
-    } finally {
-      setIsDetectingLocation(false);
-    }
-  }, [setLocation]);
-
-  const topSuggestions = useMemo(() => suggestions.filter(s => s.score >= 40), [suggestions]);
-  const otherSuggestions = useMemo(() => suggestions.filter(s => s.score < 40), [suggestions]);
-  const topCropNames = useMemo(() => topSuggestions.map(s => s.crop.name), [topSuggestions]);
   const activeLanguage = getSupportedLanguage(language);
-  const chatCopy = CHAT_COPY[activeLanguage];
+  const copy = CHAT_COPY[activeLanguage] || CHAT_COPY.en;
 
+  // Sync welcome message when language changes
   useEffect(() => {
-    setChatMessages(prev => {
-      if (prev.length === 1 && prev[0].id === 'welcome') {
-        return [createBotWelcomeMessage(language)];
-      }
-      return prev;
-    });
+    setChatMessages([createBotWelcomeMessage(language)]);
   }, [language]);
 
-  useSpeechRecognitionEvent('start', () => {
-    setIsListening(true);
-    setSpeechError(null);
-  });
+  const handleAnalyze = () => {
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      setSuggestions(getCropSuggestions({ season, soilType, region: 'central' })); // Mock region
+      setHasAnalyzed(true);
+      setIsAnalyzing(false);
+    }, 800);
+  };
 
-  useSpeechRecognitionEvent('end', () => {
-    setIsListening(false);
-  });
-
-  useSpeechRecognitionEvent('result', (event: ExpoSpeechRecognitionResultEvent) => {
-    const transcript = event.results.length > 0 ? event.results[0].transcript.trim() : '';
-    if (transcript) {
-      setChatInput(transcript);
-    }
-  });
-
-  useSpeechRecognitionEvent('error', (event: ExpoSpeechRecognitionErrorEvent) => {
-    setIsListening(false);
-    setSpeechError(event.message);
-  });
-
-  const handleStartListening = useCallback(async () => {
-    if (Platform.OS !== 'android') {
-      setSpeechError(chatCopy.androidOnly);
-      return;
-    }
-
-    if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
-      setSpeechError(chatCopy.unavailable);
-      return;
-    }
-
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!permission.granted) {
-      setSpeechError(chatCopy.permission);
-      return;
-    }
-
-    setSpeechError(null);
-    ExpoSpeechRecognitionModule.start({
-      lang: SPEECH_LANGUAGE_LOCALE[activeLanguage],
-      interimResults: true,
-      maxAlternatives: 1,
-      continuous: false,
-    });
-  }, [activeLanguage, chatCopy.androidOnly, chatCopy.permission, chatCopy.unavailable]);
-
-  const handleStopListening = useCallback(() => {
-    ExpoSpeechRecognitionModule.stop();
-  }, []);
-
-  const generateMessageId = useCallback((role: 'user' | 'bot') => {
-    messageIdCounterRef.current += 1;
-    return `${role}-${Date.now()}-${messageIdCounterRef.current}`;
-  }, []);
-
-  const handleSendChatMessage = useCallback(() => {
-    const question = chatInput.trim();
+  const handleSendMessage = useCallback((text?: string) => {
+    const question = text || chatInput.trim();
     if (!question) return;
 
-    const userMessage: ChatMessage = {
-      id: generateMessageId('user'),
-      role: 'user',
-      text: question,
-    };
-
-    const botMessage: ChatMessage = {
-      id: generateMessageId('bot'),
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text: question };
+    const botMsg: ChatMessage = {
+      id: `b-${Date.now()}`,
       role: 'bot',
       text: getFarmerChatbotReply({
         query: question,
         language,
         season,
         location,
-        topCropNames,
-      }),
+        topCropNames: activeCrops.map(c => c.name)
+      })
     };
 
-    setChatMessages(prev => [...prev, userMessage, botMessage].slice(-MAX_CHAT_MESSAGES));
+    setChatMessages(prev => [...prev, userMsg, botMsg].slice(-MAX_CHAT_MESSAGES));
     setChatInput('');
-  }, [chatInput, generateMessageId, language, season, location, topCropNames]);
+    Keyboard.dismiss();
+    setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
+  }, [chatInput, language, season, location, activeCrops]);
+
+  const handleStartListening = async () => {
+    if (Platform.OS !== 'android') return;
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!permission.granted) return;
+    setIsListening(true);
+    ExpoSpeechRecognitionModule.start({ lang: SPEECH_LANGUAGE_LOCALE[activeLanguage], interimResults: true });
+  };
+
+  useSpeechRecognitionEvent('result', (e) => {
+    if (e.results[0]) setChatInput(e.results[0].transcript);
+  });
+
+  useSpeechRecognitionEvent('end', () => setIsListening(false));
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.containerContent}
-      showsVerticalScrollIndicator={false}
-      nestedScrollEnabled
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerIconBg}>
-          <Lightbulb size={24} color="#D97706" />
-        </View>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Crop Advisor</Text>
-          <Text style={styles.headerSubtitle}>
-            Get smart crop recommendations based on your soil, water quality, location, and season.
-          </Text>
-        </View>
-      </View>
-
-      {/* Season Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Cloud size={16} color={SEASON_COLORS[season]} />
-          <Text style={[styles.sectionTitle, { color: SEASON_COLORS[season] }]}>Season</Text>
-        </View>
-        <Text style={styles.sectionHint}>Auto-detected from current month. You can override.</Text>
-        <View style={styles.chipsRow}>
-          {SEASONS.map(s => (
-            <TouchableOpacity
-              key={s}
-              style={[styles.chip, season === s && { backgroundColor: SEASON_COLORS[s], borderColor: SEASON_COLORS[s] }]}
-              onPress={() => { setSeason(s); setHasAnalyzed(false); }}
-              activeOpacity={0.7}
-            >
-              {season === s && <Check size={12} color="#fff" />}
-              <Text style={[styles.chipText, season === s && styles.chipTextActive]}>
-                {SEASON_LABELS[s]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Location Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <MapPin size={16} color={Colors.info} />
-          <Text style={[styles.sectionTitle, { color: Colors.info }]}>Your Location</Text>
-        </View>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <View style={styles.tabHeader}>
         <TouchableOpacity
-          style={styles.locationPicker}
-          onPress={() => setShowStatePicker(v => !v)}
-          activeOpacity={0.8}
+          style={[styles.tabButton, activeTab === 'chat' && styles.activeTabButton]}
+          onPress={() => setActiveTab('chat')}
         >
-          <Text style={[styles.locationText, !location && { color: Colors.textMuted }]}>
-            {location ?? 'Select your state…'}
-          </Text>
-          {showStatePicker ? <ChevronUp size={16} color={Colors.textMuted} /> : <ChevronDown size={16} color={Colors.textMuted} />}
+          <MessageCircle size={18} color={activeTab === 'chat' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabButtonText, activeTab === 'chat' && styles.activeTabButtonText]}>KrishiChat AI</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.liveLocationButton}
-          onPress={handleUseLiveLocation}
-          activeOpacity={0.85}
-          disabled={isDetectingLocation}
-          accessibilityRole="button"
-          accessibilityLabel="Use live location to auto-detect your state and fetch local weather"
+          style={[styles.tabButton, activeTab === 'advisor' && styles.activeTabButton]}
+          onPress={() => setActiveTab('advisor')}
         >
-          {isDetectingLocation ? <ActivityIndicator size="small" color={Colors.info} /> : <LocateFixed size={15} color={Colors.info} />}
-          <Text style={styles.liveLocationButtonText}>
-            {isDetectingLocation ? 'Detecting location…' : 'Use live location'}
-          </Text>
+          <Sparkles size={18} color={activeTab === 'advisor' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabButtonText, activeTab === 'advisor' && styles.activeTabButtonText]}>Crop Advisor</Text>
         </TouchableOpacity>
-        {locationStatusText ? (
-          <Text style={styles.locationStatusText} accessibilityLiveRegion="polite">
-            {locationStatusText}
-          </Text>
-        ) : null}
+      </View>
 
-        {showStatePicker && (
+      {activeTab === 'chat' ? (
+        <View style={styles.chatContainer}>
           <ScrollView
-            style={styles.stateList}
-            nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
+            ref={chatScrollRef}
+            style={styles.chatScroll}
+            contentContainerStyle={styles.chatScrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            {INDIAN_STATES.map(s => (
-              <TouchableOpacity
-                key={s.label}
-                style={[styles.stateItem, location === s.label && styles.stateItemActive]}
-                onPress={() => handleSelectState(s.label)}
-                activeOpacity={0.7}
-              >
-                {location === s.label && <Check size={13} color={Colors.primary} />}
-                <View style={styles.stateItemContent}>
-                  <Text style={[styles.stateLabel, location === s.label && { color: Colors.primary, fontWeight: '600' }]}>
-                    {s.label}
-                  </Text>
-                  <Text style={styles.regionLabel}>{REGION_LABELS[s.region]}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </View>
+            <View style={styles.welcomeInfo}>
+              <View style={styles.botAvatarLarge}>
+                <Bot size={32} color="#fff" />
+              </View>
+              <Text style={styles.welcomeTitle}>{username ? `Namaste, ${username}!` : 'Namaste!'}</Text>
+              <Text style={styles.welcomeSubtitle}>{copy.chatSubtitle}</Text>
+            </View>
 
-      {/* Weather Forecast */}
-      {!showStatePicker && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Cloud size={16} color={Colors.info} />
-            <Text style={[styles.sectionTitle, { color: Colors.info }]}>
-              {selectedState ? `Weather Forecast · ${location}` : 'Weather Forecast'}
-            </Text>
-          </View>
-          <Text style={styles.sectionHint}>
-            {weatherQuery.isSuccess
-              ? 'Live weather advisor refreshes every 15 minutes.'
-              : 'Using latest available weather data.'}
-          </Text>
-          {!selectedState && (
-            <Text style={styles.sectionHint}>Select your state or use live location to improve recommendations.</Text>
-          )}
-          {weatherQuery.isError && (
-            <Text style={styles.locationStatusText} accessibilityLiveRegion="assertive">
-              Could not fetch live weather. Showing fallback forecast.
-            </Text>
-          )}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.forecastScroll}>
-            {forecastData.map((item: ForecastDay) => (
-              <View key={item.day} style={styles.forecastCard}>
-                <Text style={styles.forecastDay}>{item.day}</Text>
-                <Text style={styles.forecastCondition}>{item.condition}</Text>
-                <Text style={styles.forecastTemp}>{item.temp}</Text>
-                <View style={styles.forecastMeta}>
-                  <CloudDrizzle size={12} color={Colors.info} />
-                  <Text style={styles.forecastMetaText}>{item.rain}%</Text>
-                </View>
-                <View style={styles.forecastMeta}>
-                  <Wind size={12} color={Colors.textMuted} />
-                  <Text style={styles.forecastMetaText}>{item.wind}</Text>
+            {chatMessages.map(msg => (
+              <View key={msg.id} style={[styles.messageRow, msg.role === 'user' ? styles.userRow : styles.botRow]}>
+                {msg.role === 'bot' && (
+                  <View style={styles.botAvatarSmall}><Bot size={14} color="#fff" /></View>
+                )}
+                <View style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.botBubble]}>
+                  <Text style={[styles.bubbleText, msg.role === 'user' && styles.userBubbleText]}>{msg.text}</Text>
                 </View>
               </View>
             ))}
           </ScrollView>
-        </View>
-      )}
 
-      {/* Soil Profile Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <FlaskConical size={16} color="#8B6914" />
-          <Text style={[styles.sectionTitle, { color: '#8B6914' }]}>Soil & Water Profile</Text>
-        </View>
-        <Text style={styles.sectionHint}>Optional – leave blank if you do not have a lab report.</Text>
+          <View style={styles.chatFooter}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActions}>
+              {copy.quickQuestions.map((q: string, i: number) => (
+                <TouchableOpacity key={i} style={styles.quickActionBtn} onPress={() => handleSendMessage(q)}>
+                  <Text style={styles.quickActionText}>{q}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-        <Text style={styles.fieldLabel}>Soil Type</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.soilTypeScroll}>
-          {SOIL_TYPES.map(t => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.chip, soilType === t && styles.chipActiveSoil]}
-              onPress={() => { setSoilType(soilType === t ? null : t); setHasAnalyzed(false); }}
-              activeOpacity={0.7}
-            >
-              {soilType === t && <Check size={12} color="#fff" />}
-              <Text style={[styles.chipText, soilType === t && styles.chipTextActive]}>
-                {SOIL_TYPE_LABELS[t]}
-              </Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                value={chatInput}
+                onChangeText={setChatInput}
+                placeholder={copy.placeholder}
+                placeholderTextColor={Colors.textMuted}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.iconButton, isListening && styles.micActive]}
+                onPress={isListening ? () => ExpoSpeechRecognitionModule.stop() : handleStartListening}
+              >
+                {isListening ? <MicOff size={20} color="#fff" /> : <Mic size={20} color="#fff" />}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.iconButton, styles.sendButton, !chatInput.trim() && styles.sendDisabled]}
+                onPress={() => handleSendMessage()}
+                disabled={!chatInput.trim()}
+              >
+                <Send size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <ScrollView style={styles.advisorContainer} contentContainerStyle={styles.advisorContent}>
+          <View style={styles.advisorHeader}>
+            <View style={styles.advisorIconBg}><Sparkles size={24} color={Colors.primary} /></View>
+            <View>
+              <Text style={styles.advisorTitle}>{copy.advisorTitle}</Text>
+              <Text style={styles.advisorSubtitle}>{copy.advisorSubtitle}</Text>
+            </View>
+          </View>
+
+          <View style={styles.advisorSection}>
+            <Text style={styles.label}>Select Season</Text>
+            <View style={styles.chipRow}>
+              {SEASONS.map(s => (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.chip, season === s && styles.activeChip]}
+                  onPress={() => setSeason(s)}
+                >
+                  <Text style={[styles.chipText, season === s && styles.activeChipText]}>{SEASON_LABELS[s]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Soil Type (Optional)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.soilRow}>
+              {SOIL_TYPES.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.chip, soilType === t && styles.activeChip]}
+                  onPress={() => setSoilType(soilType === t ? null : t)}
+                >
+                  <Text style={[styles.chipText, soilType === t && styles.activeChipText]}>{SOIL_TYPE_LABELS[t]}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={styles.analyzeBtn} onPress={handleAnalyze} disabled={isAnalyzing}>
+              {isAnalyzing ? <ActivityIndicator color="#fff" /> : <Text style={styles.analyzeBtnText}>Get Recommendations</Text>}
             </TouchableOpacity>
-          ))}
+          </View>
+
+          {hasAnalyzed && (
+            <View style={styles.resultsContainer}>
+              <Text style={styles.resultsTitle}>Recommended for you</Text>
+              {suggestions.slice(0, 5).map(s => <SuggestionCard key={s.crop.name} suggestion={s} />)}
+            </View>
+          )}
         </ScrollView>
-
-        <View style={styles.inputsGrid}>
-          <View style={styles.inputItem}>
-            <Text style={styles.inputLabel}>Soil pH</Text>
-            <TextInput
-              style={styles.input}
-              value={ph}
-              onChangeText={v => { setPh(v); setHasAnalyzed(false); }}
-              placeholder="e.g. 6.5"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="decimal-pad"
-            />
-          </View>
-          <View style={styles.inputItem}>
-            <Text style={styles.inputLabel}>Water EC (dS/m)</Text>
-            <TextInput
-              style={styles.input}
-              value={waterEc}
-              onChangeText={v => { setWaterEc(v); setHasAnalyzed(false); }}
-              placeholder="e.g. 0.8"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="decimal-pad"
-            />
-          </View>
-          <View style={styles.inputItem}>
-            <Text style={styles.inputLabel}>Nitrogen (kg/ha)</Text>
-            <TextInput
-              style={styles.input}
-              value={nitrogen}
-              onChangeText={v => { setNitrogen(v); setHasAnalyzed(false); }}
-              placeholder="e.g. 250"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="decimal-pad"
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Analyze Button */}
-      <TouchableOpacity
-        style={styles.analyzeButton}
-        onPress={handleAnalyze}
-        activeOpacity={0.85}
-        disabled={isAnalyzing}
-      >
-        {isAnalyzing
-          ? <ActivityIndicator color="#fff" size="small" />
-          : <Lightbulb size={18} color="#fff" />}
-        <Text style={styles.analyzeButtonText}>
-          {isAnalyzing ? 'Analyzing…' : 'Get Crop Suggestions'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Results */}
-      {hasAnalyzed && (
-        <View style={styles.resultsSection}>
-          <View style={styles.resultsMeta}>
-            <Text style={styles.resultsTitle}>
-              {CROP_PROFILES.filter(c => c.seasons.includes(season)).length} crops checked for {SEASON_LABELS[season]}
-            </Text>
-            {location && <Text style={styles.resultsSubtitle}>📍 {location}</Text>}
-          </View>
-
-          {topSuggestions.length === 0 && (
-            <View style={styles.emptyResults}>
-              <Leaf size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No strong matches found. Try adjusting your soil type or season.</Text>
-            </View>
-          )}
-
-          {topSuggestions.length > 0 && (
-            <>
-              <Text style={styles.groupLabel}>Recommended Crops</Text>
-              {topSuggestions.map(s => (
-                <SuggestionCard key={s.crop.name} suggestion={s} />
-              ))}
-            </>
-          )}
-
-          {otherSuggestions.length > 0 && (
-            <>
-              <Text style={[styles.groupLabel, { color: Colors.textMuted, marginTop: 16 }]}>
-                Other {SEASON_LABELS[season]} Crops (Low Match)
-              </Text>
-              {otherSuggestions.map(s => (
-                <SuggestionCard key={s.crop.name} suggestion={s} />
-              ))}
-            </>
-          )}
-        </View>
       )}
-
-      <View style={styles.chatSection}>
-        <View style={styles.chatHeader}>
-          <MessageCircle size={18} color={Colors.primary} />
-          <View style={styles.chatHeaderText}>
-            <Text style={styles.chatTitle}>{chatCopy.title}</Text>
-            <Text style={styles.chatSubtitle}>{chatCopy.subtitle}</Text>
-          </View>
-        </View>
-
-        <View style={styles.chatMessagesBox}>
-          {chatMessages.slice(-MAX_CHAT_MESSAGES).map(message => (
-            <View
-              key={message.id}
-              style={[
-                styles.chatBubble,
-                message.role === 'user' ? styles.userBubble : styles.botBubble,
-              ]}
-            >
-              <Text style={[styles.chatBubbleText, message.role === 'user' && styles.userBubbleText]}>
-                {message.text}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.chatInputRow}>
-          <TextInput
-            style={styles.chatInput}
-            value={chatInput}
-            onChangeText={setChatInput}
-            placeholder={chatCopy.placeholder}
-            placeholderTextColor={Colors.textMuted}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
-            onPress={isListening ? handleStopListening : handleStartListening}
-            activeOpacity={0.85}
-          >
-            {isListening ? <MicOff size={18} color="#fff" /> : <Mic size={18} color="#fff" />}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sendButton} onPress={handleSendChatMessage} activeOpacity={0.85}>
-            <Send size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        {speechError ? <Text style={styles.speechErrorText}>{speechError}</Text> : null}
-      </View>
-
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  containerContent: {
-    paddingBottom: 50,
-  },
-  header: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 14,
-    alignItems: 'center',
-  },
-  headerIconBg: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: '#FEF3C7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  section: {
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  sectionHint: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginBottom: 10,
-    marginTop: 2,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 5,
-  },
-  chipActiveSoil: {
-    backgroundColor: '#8B6914',
-    borderColor: '#8B6914',
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '500' as const,
-    color: Colors.textSecondary,
-  },
-  chipTextActive: {
-    color: '#fff',
-    fontWeight: '600' as const,
-  },
-  locationPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  liveLocationButton: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.info + '12',
-    borderWidth: 1,
-    borderColor: Colors.info + '22',
-  },
-  liveLocationButtonText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.info,
-  },
-  locationStatusText: {
-    marginTop: 7,
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  locationText: {
-    fontSize: 15,
-    color: Colors.text,
-    fontWeight: '500' as const,
-  },
-  stateList: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginTop: 6,
-    maxHeight: 280,
-  },
-  stateItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    gap: 8,
-  },
-  stateItemActive: {
-    backgroundColor: Colors.primary + '0A',
-  },
-  stateItemContent: {
-    flex: 1,
-  },
-  stateLabel: {
-    fontSize: 14,
-    color: Colors.text,
-  },
-  regionLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 1,
-  },
-  forecastScroll: {
-    gap: 10,
-    paddingVertical: 4,
-  },
-  forecastCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 12,
-    minWidth: 110,
-    gap: 4,
-    alignItems: 'center',
-  },
-  forecastDay: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  forecastCondition: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textAlign: 'center' as const,
-    lineHeight: 15,
-  },
-  forecastTemp: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.primary,
-    marginTop: 2,
-  },
-  forecastMeta: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 3,
-  },
-  forecastMetaText: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  soilTypeScroll: {
-    gap: 8,
-    paddingVertical: 4,
-    marginBottom: 14,
-  },
-  inputsGrid: {
-    gap: 12,
-  },
-  inputItem: {
-    gap: 4,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  input: {
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  analyzeButton: {
-    flexDirection: 'row',
-    backgroundColor: Colors.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 20,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  analyzeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  resultsSection: {
-    marginHorizontal: 16,
-    marginTop: 20,
-  },
-  resultsMeta: {
-    marginBottom: 12,
-  },
-  resultsTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  resultsSubtitle: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  groupLabel: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: Colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 10,
-  },
-  emptyResults: {
-    alignItems: 'center',
-    paddingVertical: 30,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  suggCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  suggCardTop: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  suggImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
-    backgroundColor: Colors.surfaceAlt,
-  },
-  suggInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  suggTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  suggName: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    flex: 1,
-  },
-  scoreBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  scoreText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-  },
-  scoreLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: Colors.primary + '14',
-  },
-  categoryText: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-    color: Colors.primary,
-    textTransform: 'capitalize',
-  },
-  suggDays: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  scoreBarBg: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.borderLight,
-    marginTop: 10,
-    overflow: 'hidden',
-  },
-  scoreBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  expandedSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    gap: 10,
-  },
-  expandDesc: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 19,
-  },
-  reasonsBlock: {
-    gap: 5,
-  },
-  reasonsTitle: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: '#16A34A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  reasonRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  reasonText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 17,
-  },
-  warningsBlock: {
-    gap: 5,
-  },
-  warningsTitle: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.warning,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  warningRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  warningText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 17,
-  },
-  varietiesBlock: {
-    gap: 6,
-  },
-  varietiesTitle: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  varietiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  varietyChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: Colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  varietyText: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-    color: Colors.textSecondary,
-  },
-  chatSection: {
-    marginTop: 18,
-    marginHorizontal: 16,
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    padding: 14,
-    gap: 10,
-  },
-  chatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  chatHeaderText: {
-    flex: 1,
-  },
-  chatTitle: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  chatSubtitle: {
-    marginTop: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  chatMessagesBox: {
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    padding: 10,
-    gap: 8,
-  },
-  chatBubble: {
-    maxWidth: '92%',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  botBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.surfaceAlt,
-  },
-  userBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: Colors.primary,
-  },
-  chatBubbleText: {
-    fontSize: 13,
-    color: Colors.text,
-    lineHeight: 18,
-  },
-  userBubbleText: {
-    color: '#fff',
-  },
-  chatInputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  chatInput: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 96,
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: Colors.text,
-  },
-  voiceButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
-  voiceButtonActive: {
-    backgroundColor: Colors.warning,
-  },
-  sendButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2563EB',
-  },
-  speechErrorText: {
-    fontSize: 12,
-    color: Colors.warning,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  tabHeader: { flexDirection: 'row', backgroundColor: Colors.surface, padding: 4, margin: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight },
+  tabButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 8, borderRadius: 8 },
+  activeTabButton: { backgroundColor: Colors.primary + '10' },
+  tabButtonText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  activeTabButtonText: { color: Colors.primary },
+
+  // Chat Styles
+  chatContainer: { flex: 1 },
+  chatScroll: { flex: 1 },
+  chatScrollContent: { padding: 16, paddingBottom: 20 },
+  welcomeInfo: { alignItems: 'center', marginBottom: 30, marginTop: 10 },
+  botAvatarLarge: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 12, elevation: 4 },
+  welcomeTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
+  welcomeSubtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
+  messageRow: { flexDirection: 'row', marginBottom: 16, maxWidth: '85%' },
+  userRow: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
+  botRow: { alignSelf: 'flex-start' },
+  botAvatarSmall: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 4 },
+  bubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 },
+  userBubble: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
+  botBubble: { backgroundColor: Colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: Colors.borderLight },
+  bubbleText: { fontSize: 15, color: Colors.text, lineHeight: 22 },
+  userBubbleText: { color: '#fff' },
+  chatFooter: { backgroundColor: Colors.surface, padding: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  quickActions: { gap: 8, paddingBottom: 12 },
+  quickActionBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+  quickActionText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  textInput: { flex: 1, backgroundColor: Colors.background, borderRadius: 24, paddingHorizontal: 16, paddingVertical: 10, maxHeight: 100, fontSize: 15, color: Colors.text, borderWidth: 1, borderColor: Colors.border },
+  iconButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.textMuted, alignItems: 'center', justifyContent: 'center' },
+  micActive: { backgroundColor: Colors.danger },
+  sendButton: { backgroundColor: Colors.primary },
+  sendDisabled: { opacity: 0.5 },
+
+  // Advisor Styles
+  advisorContainer: { flex: 1 },
+  advisorContent: { padding: 16 },
+  advisorHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
+  advisorIconBg: { width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.primary + '15', alignItems: 'center', justifyContent: 'center' },
+  advisorTitle: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  advisorSubtitle: { fontSize: 13, color: Colors.textSecondary },
+  advisorSection: { backgroundColor: Colors.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: Colors.borderLight },
+  label: { fontSize: 14, fontWeight: '600', color: Colors.text, marginBottom: 12 },
+  chipRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  soilRow: { gap: 10, marginBottom: 20 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+  activeChip: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontSize: 14, color: Colors.textSecondary },
+  activeChipText: { color: '#fff', fontWeight: '600' },
+  analyzeBtn: { backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginTop: 10 },
+  analyzeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  resultsContainer: { marginTop: 24, gap: 12 },
+  resultsTitle: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  suggCard: { backgroundColor: Colors.surface, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: Colors.borderLight },
+  suggCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  suggImage: { width: 50, height: 50, borderRadius: 10 },
+  suggInfo: { flex: 1, gap: 4 },
+  suggName: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  scoreBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  scoreText: { fontSize: 12, fontWeight: '700' },
+  expandedSection: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  expandDesc: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 10 },
+  reasonsBlock: { gap: 6 },
+  reasonRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  reasonText: { fontSize: 13, color: Colors.textSecondary },
 });

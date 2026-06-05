@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,95 +8,160 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
+  Share,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { Stack } from 'expo-router';
-import { Camera, ImagePlus, Scan, Leaf, FlaskConical, Shield, AlertTriangle, X } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import {
+  Camera, ImagePlus, Scan, Leaf, FlaskConical,
+  Shield, AlertTriangle, X, Share2, ClipboardPlus,
+  CheckCircle2, ChevronDown, MessageCircle
+} from 'lucide-react-native';
 import { generateObject } from '@rork-ai/toolkit-sdk';
 import { z } from 'zod';
 import Colors from '@/constants/colors';
 import { DiseaseDiagnosis, SEVERITY_COLORS } from '@/types/crop';
 import { useCrops } from '@/contexts/CropContext';
+import { useTranslation } from '@/utils/i18n';
 
 const diagnosisSchema = z.object({
   diseaseName: z.string(),
+  localName: z.string().describe('Common name used by Indian farmers'),
   confidence: z.string(),
   description: z.string(),
   symptoms: z.array(z.string()),
   affectedPart: z.string(),
   severity: z.enum(['mild', 'moderate', 'severe']),
+  urgency: z.string().describe('How quickly the farmer must act'),
   organicTreatments: z.array(z.object({
     method: z.string(),
-    details: z.string(),
+    details: z.string().describe('Practical instructions like dosage per 15L pump'),
     applicationTiming: z.string(),
   })),
   chemicalTreatments: z.array(z.object({
     method: z.string(),
-    details: z.string(),
+    details: z.string().describe('Practical instructions like dosage per 15L pump'),
     applicationTiming: z.string(),
   })),
   preventionTips: z.array(z.string()),
 });
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  hi: 'Hindi (हिंदी)',
+  gu: 'Gujarati (ગુજરાતી)',
+  mr: 'Marathi (मराठी)',
+};
+
 export default function DiseaseDiagnosisScreen() {
-  const { crops } = useCrops();
+  const router = useRouter();
+  const { crops, addActivity } = useCrops();
+  const { t, lang } = useTranslation();
+
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
-  const [diagnosis, setDiagnosis] = useState<DiseaseDiagnosis | null>(null);
+  const [showCropPicker, setShowCropPicker] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<any | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'organic' | 'chemical'>('organic');
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const startPulse = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.05, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    ).start();
+  const selectedCrop = useMemo(() =>
+    crops.find(c => c.id === selectedCropId), [crops, selectedCropId]
+  );
+
+  const getSeverityLabel = (severity: string) => {
+    const labels: Record<string, Record<string, string>> = {
+      hi: { mild: 'हल्का', moderate: 'मध्यम', severe: 'गंभीर' },
+      gu: { mild: 'હળવો', moderate: 'મધ્યમ', severe: 'ગંભીર' },
+      mr: { mild: 'सौम्य', moderate: 'मध्यम', severe: 'गंभीर' },
+    };
+    return labels[lang]?.[severity] || severity.toUpperCase();
   };
 
-  const showResults = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ]).start();
+  const getShareMessage = () => {
+    if (!diagnosis) return '';
+    const treatment = activeTab === 'organic' ? diagnosis.organicTreatments[0] : diagnosis.chemicalTreatments[0];
+
+    return `*🌿 KishanSmart AI Health Report*\n\n` +
+      `*Crop:* ${selectedCrop?.name || 'Field Crop'} (${selectedCrop?.variety || 'General'})\n` +
+      `*Disease:* ${diagnosis.diseaseName}\n` +
+      `*Local Name:* ${diagnosis.localName}\n` +
+      `*Severity:* ${diagnosis.severity.toUpperCase()}\n\n` +
+      `*Description:* ${diagnosis.description}\n\n` +
+      `*✅ Suggested Treatment:* \n${treatment?.method}\n${treatment?.details}\n\n` +
+      `_Sent via KishanSmart App_`;
+  };
+
+  const handleWhatsAppShare = async () => {
+    const message = getShareMessage();
+    const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback to regular share if WhatsApp isn't installed
+        await Share.share({ message });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not open WhatsApp');
+    }
+  };
+
+  const handleGeneralShare = async () => {
+    try {
+      await Share.share({ message: getShareMessage() });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleAddTask = (treatment: any) => {
+    if (!selectedCropId) {
+      Alert.alert('Select Crop', 'Please select a crop from the top menu to save this task.');
+      return;
+    }
+
+    addActivity(selectedCropId, {
+      title: `Treat: ${diagnosis.diseaseName}`,
+      type: activeTab === 'organic' ? 'other' : 'pest_control',
+      date: new Date().toISOString(),
+      description: `${treatment.method}: ${treatment.details}`,
+      cost: 0,
+    });
+
+    Alert.alert('Success', 'Treatment added to your tasks.');
   };
 
   const pickImage = async (source: 'camera' | 'gallery') => {
     try {
       setError(null);
       setDiagnosis(null);
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
 
       let result: ImagePicker.ImagePickerResult;
-
       if (source === 'camera') {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert('Permission Required', 'Camera permission is needed to take photos.');
-          return;
-        }
+        if (!permission.granted) return;
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
-          quality: 0.7,
+          quality: 0.6,
           base64: true,
         });
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert('Permission Required', 'Gallery permission is needed to select photos.');
-          return;
-        }
+        if (!permission.granted) return;
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          quality: 0.7,
+          quality: 0.6,
           base64: true,
         });
       }
@@ -104,72 +169,45 @@ export default function DiseaseDiagnosisScreen() {
       if (!result.canceled && result.assets[0]) {
         setImageUri(result.assets[0].uri);
         setImageBase64(result.assets[0].base64 ?? null);
-        console.log('Image selected successfully');
       }
     } catch (err) {
-      console.error('Error picking image:', err);
-      setError('Failed to pick image. Please try again.');
+      setError('Error picking image');
     }
   };
 
   const analyzeCrop = async () => {
-    if (!imageBase64) {
-      setError('Please select an image first.');
-      return;
-    }
+    if (!imageBase64) return;
 
     setIsAnalyzing(true);
     setError(null);
-    startPulse();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
 
     try {
-      const selectedCrop = selectedCropId ? crops.find(c => c.id === selectedCropId) : null;
-      let cropContext = selectedCrop
-        ? `The farmer is growing ${selectedCrop.name} (${selectedCrop.variety}), currently in ${selectedCrop.currentStage} stage, farming type: ${selectedCrop.farmingType}.`
-        : 'The farmer has uploaded a photo of their crop.';
+      const cropContext = selectedCrop
+        ? `Farmer is growing ${selectedCrop.name} (${selectedCrop.variety}) in stage ${selectedCrop.currentStage}.`
+        : 'Photo of an unknown crop.';
 
-      if (selectedCrop?.soilReport) {
-        const sr = selectedCrop.soilReport;
-        const soilDetails = [
-          sr.soilType && `Soil type: ${sr.soilType}`,
-          sr.ph && `Soil pH: ${sr.ph}`,
-          sr.nitrogen && `Nitrogen: ${sr.nitrogen} kg/ha`,
-          sr.phosphorus && `Phosphorus: ${sr.phosphorus} kg/ha`,
-          sr.potassium && `Potassium: ${sr.potassium} kg/ha`,
-          sr.organicCarbon && `Organic carbon: ${sr.organicCarbon}%`,
-          sr.waterPh && `Water pH: ${sr.waterPh}`,
-          sr.waterEc && `Water EC: ${sr.waterEc}`,
-        ].filter(Boolean).join(', ');
-        if (soilDetails) {
-          cropContext += ` Field soil/water report: ${soilDetails}.`;
-        }
-      }
+      const targetLanguageName = LANGUAGE_NAMES[lang] || 'English';
 
       const result = await generateObject({
         messages: [
           {
             role: 'user',
             content: [
-              {
-                type: 'image',
-                image: `data:image/jpeg;base64,${imageBase64}`,
-              },
+              { type: 'image', image: `data:image/jpeg;base64,${imageBase64}` },
               {
                 type: 'text',
-                text: `You are an expert agricultural plant pathologist. Analyze this crop photo for any diseases, pests, or health issues. ${cropContext}
+                text: `You are an expert Indian Agricultural Pathologist. Analyze this crop for diseases. ${cropContext}
 
-Provide a detailed diagnosis including:
-1. Disease/pest name and confidence level
-2. Description of the issue
-3. Visible symptoms
-4. Which part of the plant is affected
-5. Severity (mild/moderate/severe)
-6. At least 3 organic/natural treatment methods with detailed application instructions
-7. At least 3 chemical/non-organic treatment methods with detailed application instructions
-8. Prevention tips for future
-
-If the plant looks healthy, still provide the diagnosis as "Healthy Plant" with preventive care tips.
-Be specific with product names, dosages, and application methods that Indian farmers can easily follow.`,
+                IMPORTANT: Provide the entire response in ${targetLanguageName}.
+                Use practical terms for Indian farmers (e.g. dosage per 15L spray pump, or matchbox size).
+                Provide a local common name for the disease.`
               },
             ],
           },
@@ -177,242 +215,190 @@ Be specific with product names, dosages, and application methods that Indian far
         schema: diagnosisSchema,
       });
 
-      console.log('Diagnosis result:', result);
       setDiagnosis(result);
-      showResults();
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
     } catch (err) {
-      console.error('Error analyzing crop:', err);
-      setError('Failed to analyze the image. Please try again with a clearer photo.');
+      setError(t.diseaseDiagnosis.analyzeError);
     } finally {
       setIsAnalyzing(false);
       pulseAnim.setValue(1);
     }
   };
 
-  const clearImage = () => {
-    setImageUri(null);
-    setImageBase64(null);
-    setDiagnosis(null);
-    setError(null);
-    fadeAnim.setValue(0);
-    slideAnim.setValue(30);
-  };
-
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: 'Disease Diagnosis',
-          headerStyle: { backgroundColor: Colors.surface },
-          headerTintColor: Colors.text,
-        }}
-      />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Stack.Screen options={{
+        title: 'Health Check',
+        headerRight: () => diagnosis ? (
+          <View style={{ flexDirection: 'row', gap: 12, marginRight: 16 }}>
+             <TouchableOpacity onPress={handleWhatsAppShare}>
+              <MessageCircle size={24} color="#25D366" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleGeneralShare}>
+              <Share2 size={22} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : null
+      }} />
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        {/* Step 1: Crop Selection */}
+        <View style={styles.cropSelectorContainer}>
+          <Text style={styles.selectorLabel}>Select your crop (Important for accuracy):</Text>
+          <TouchableOpacity
+            style={styles.cropPicker}
+            onPress={() => setShowCropPicker(!showCropPicker)}
+          >
+            <Leaf size={18} color={Colors.primary} />
+            <Text style={styles.cropPickerText}>
+              {selectedCrop ? `${selectedCrop.name} (${selectedCrop.variety})` : 'Choose from my farm...'}
+            </Text>
+            <ChevronDown size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          {showCropPicker && (
+            <View style={styles.cropList}>
+              {crops.map(crop => (
+                <TouchableOpacity
+                  key={crop.id}
+                  style={[styles.cropItem, selectedCropId === crop.id && styles.selectedCropItem]}
+                  onPress={() => {
+                    setSelectedCropId(crop.id);
+                    setShowCropPicker(false);
+                  }}
+                >
+                  <Text style={[styles.cropItemText, selectedCropId === crop.id && { color: Colors.primary, fontWeight: '700' }]}>
+                    {crop.name} - {crop.variety}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.cropItem} onPress={() => { setSelectedCropId(null); setShowCropPicker(false); }}>
+                <Text style={styles.cropItemText}>Other / Not Listed</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {!imageUri ? (
           <View style={styles.uploadSection}>
-            <View style={styles.uploadIconContainer}>
-              <Scan size={48} color={Colors.primary} />
+            <View style={styles.scanHero}>
+              <View style={styles.scanIconBg}><Scan size={42} color={Colors.primary} /></View>
+              <Text style={styles.scanTitle}>Disease Detector</Text>
+              <Text style={styles.scanSubtitle}>Take a clear photo of leaves or stems with spots, holes, or abnormal color.</Text>
             </View>
-            <Text style={styles.uploadTitle}>Scan Your Crop</Text>
-            <Text style={styles.uploadSubtitle}>
-              Take a photo or upload from gallery to identify diseases and get treatment suggestions
-            </Text>
 
             <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={() => pickImage('camera')}
-                activeOpacity={0.7}
-                testID="camera-button"
-              >
-                <View style={styles.uploadButtonIcon}>
-                  <Camera size={24} color="#fff" />
-                </View>
-                <Text style={styles.uploadButtonText}>Take Photo</Text>
+              <TouchableOpacity style={styles.mainButton} onPress={() => pickImage('camera')}>
+                <Camera size={24} color="#fff" />
+                <Text style={styles.buttonText}>Camera</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.uploadButton, styles.galleryButton]}
-                onPress={() => pickImage('gallery')}
-                activeOpacity={0.7}
-                testID="gallery-button"
-              >
-                <View style={[styles.uploadButtonIcon, styles.galleryButtonIcon]}>
-                  <ImagePlus size={24} color={Colors.primary} />
-                </View>
-                <Text style={[styles.uploadButtonText, styles.galleryButtonText]}>Gallery</Text>
+              <TouchableOpacity style={[styles.mainButton, styles.secondaryButton]} onPress={() => pickImage('gallery')}>
+                <ImagePlus size={24} color={Colors.primary} />
+                <Text style={[styles.buttonText, { color: Colors.text }]}>Gallery</Text>
               </TouchableOpacity>
-            </View>
-
-            <View style={styles.tipsCard}>
-              <Text style={styles.tipsTitle}>Tips for Better Results</Text>
-              <View style={styles.tipRow}>
-                <View style={styles.tipDot} />
-                <Text style={styles.tipText}>Take a close-up photo of the affected area</Text>
-              </View>
-              <View style={styles.tipRow}>
-                <View style={styles.tipDot} />
-                <Text style={styles.tipText}>Ensure good lighting - natural daylight is best</Text>
-              </View>
-              <View style={styles.tipRow}>
-                <View style={styles.tipDot} />
-                <Text style={styles.tipText}>Include both healthy and diseased parts if possible</Text>
-              </View>
-              <View style={styles.tipRow}>
-                <View style={styles.tipDot} />
-                <Text style={styles.tipText}>Avoid blurry or shaky images</Text>
-              </View>
             </View>
           </View>
         ) : (
           <View>
             <View style={styles.imagePreviewContainer}>
               <Image source={{ uri: imageUri }} style={styles.imagePreview} contentFit="cover" />
-              <TouchableOpacity style={styles.clearButton} onPress={clearImage} testID="clear-image">
-                <X size={18} color="#fff" />
+              <TouchableOpacity style={styles.clearButton} onPress={() => { setImageUri(null); setDiagnosis(null); }}>
+                <X size={20} color="#fff" />
               </TouchableOpacity>
             </View>
 
-            {crops.length > 0 && !diagnosis && (
-              <View style={styles.cropSelectSection}>
-                <Text style={styles.cropSelectLabel}>Link to your crop (optional)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cropChipScroll}>
-                  <TouchableOpacity
-                    style={[styles.cropChip, !selectedCropId && styles.cropChipActive]}
-                    onPress={() => setSelectedCropId(null)}
-                  >
-                    <Text style={[styles.cropChipText, !selectedCropId && styles.cropChipTextActive]}>None</Text>
-                  </TouchableOpacity>
-                  {crops.map(crop => (
-                    <TouchableOpacity
-                      key={crop.id}
-                      style={[styles.cropChip, selectedCropId === crop.id && styles.cropChipActive]}
-                      onPress={() => setSelectedCropId(crop.id)}
-                    >
-                      <Text style={[styles.cropChipText, selectedCropId === crop.id && styles.cropChipTextActive]}>
-                        {crop.name} - {crop.variety}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
             {!diagnosis && !isAnalyzing && (
-              <TouchableOpacity
-                style={styles.analyzeButton}
-                onPress={analyzeCrop}
-                activeOpacity={0.7}
-                testID="analyze-button"
-              >
-                <Scan size={20} color="#fff" />
-                <Text style={styles.analyzeButtonText}>Analyze for Diseases</Text>
+              <TouchableOpacity style={styles.analyzeButton} onPress={analyzeCrop}>
+                <Scan size={22} color="#fff" />
+                <Text style={styles.analyzeButtonText}>Start AI Analysis</Text>
               </TouchableOpacity>
             )}
 
             {isAnalyzing && (
-              <Animated.View style={[styles.analyzingContainer, { transform: [{ scale: pulseAnim }] }]}>
+              <Animated.View style={[styles.analyzingCard, { transform: [{ scale: pulseAnim }] }]}>
                 <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.analyzingText}>Analyzing your crop...</Text>
-                <Text style={styles.analyzingSubtext}>Our AI is examining the photo for diseases and pests</Text>
+                <Text style={styles.analyzingText}>AI is scanning for pests & diseases...</Text>
               </Animated.View>
-            )}
-
-            {error && (
-              <View style={styles.errorContainer}>
-                <AlertTriangle size={20} color={Colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
             )}
 
             {diagnosis && (
               <Animated.View style={[styles.resultSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-                <View style={styles.diagnosisHeader}>
-                  <View style={styles.diagnosisNameRow}>
-                    <Text style={styles.diagnosisName}>{diagnosis.diseaseName}</Text>
+                <View style={styles.diagnosisCard}>
+                  <View style={styles.diagnosisHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.diseaseName}>{diagnosis.diseaseName}</Text>
+                      <Text style={styles.localName}>Known locally as: {diagnosis.localName}</Text>
+                    </View>
                     <View style={[styles.severityBadge, { backgroundColor: SEVERITY_COLORS[diagnosis.severity] + '20' }]}>
                       <Text style={[styles.severityText, { color: SEVERITY_COLORS[diagnosis.severity] }]}>
-                        {diagnosis.severity.toUpperCase()}
+                        {getSeverityLabel(diagnosis.severity)}
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.confidenceText}>Confidence: {diagnosis.confidence}</Text>
-                  <Text style={styles.diagnosisDescription}>{diagnosis.description}</Text>
-                </View>
 
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Affected Part</Text>
-                  <Text style={styles.infoCardValue}>{diagnosis.affectedPart}</Text>
-                </View>
-
-                <View style={styles.symptomsCard}>
-                  <Text style={styles.sectionTitle}>Symptoms Identified</Text>
-                  {diagnosis.symptoms.map((symptom, index) => (
-                    <View key={index} style={styles.symptomRow}>
-                      <View style={styles.symptomDot} />
-                      <Text style={styles.symptomText}>{symptom}</Text>
+                  <View style={styles.urgencyBox}>
+                    <AlertTriangle size={18} color={Colors.warning} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.urgencyTitle}>AI Warning</Text>
+                      <Text style={styles.urgencyText}>{diagnosis.urgency}</Text>
                     </View>
-                  ))}
+                  </View>
+
+                  <Text style={styles.description}>{diagnosis.description}</Text>
+
+                  <View style={styles.shareOptionsRow}>
+                    <TouchableOpacity style={styles.whatsappBtn} onPress={handleWhatsAppShare}>
+                      <MessageCircle size={18} color="#fff" />
+                      <Text style={styles.whatsappBtnText}>WhatsApp Expert</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.shareSimpleBtn} onPress={handleGeneralShare}>
+                      <Share2 size={18} color={Colors.info} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                <View style={styles.treatmentSection}>
-                  <Text style={styles.sectionTitle}>Treatment Methods</Text>
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Treatment Options</Text>
                   <View style={styles.tabBar}>
                     <TouchableOpacity
                       style={[styles.tab, activeTab === 'organic' && styles.activeTab]}
                       onPress={() => setActiveTab('organic')}
                     >
-                      <Leaf size={16} color={activeTab === 'organic' ? '#fff' : Colors.primary} />
-                      <Text style={[styles.tabText, activeTab === 'organic' && styles.activeTabText]}>Organic</Text>
+                      <Text style={[styles.tabText, activeTab === 'organic' && styles.activeTabText]}>Organic (safe)</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.tab, activeTab === 'chemical' && styles.activeChemicalTab]}
+                      style={[styles.tab, activeTab === 'chemical' && styles.activeTabChem]}
                       onPress={() => setActiveTab('chemical')}
                     >
-                      <FlaskConical size={16} color={activeTab === 'chemical' ? '#fff' : Colors.info} />
                       <Text style={[styles.tabText, activeTab === 'chemical' && styles.activeTabText]}>Chemical</Text>
                     </TouchableOpacity>
                   </View>
 
-                  {(activeTab === 'organic' ? diagnosis.organicTreatments : diagnosis.chemicalTreatments).map((treatment, index) => (
-                    <View key={index} style={styles.treatmentCard}>
+                  {(activeTab === 'organic' ? diagnosis.organicTreatments : diagnosis.chemicalTreatments).map((tr: any, i: number) => (
+                    <View key={i} style={styles.treatmentCard}>
                       <View style={styles.treatmentHeader}>
-                        <View style={[styles.treatmentIndex, activeTab === 'organic' ? styles.organicIndex : styles.chemicalIndex]}>
-                          <Text style={styles.treatmentIndexText}>{index + 1}</Text>
-                        </View>
-                        <Text style={styles.treatmentMethod}>{treatment.method}</Text>
+                        <Text style={styles.treatmentMethod}>{tr.method}</Text>
+                        <TouchableOpacity style={styles.addTaskBtn} onPress={() => handleAddTask(tr)}>
+                          <ClipboardPlus size={16} color={Colors.primary} />
+                          <Text style={styles.addTaskText}>Add Task</Text>
+                        </TouchableOpacity>
                       </View>
-                      <Text style={styles.treatmentDetails}>{treatment.details}</Text>
-                      <View style={styles.timingRow}>
-                        <Text style={styles.timingLabel}>When to apply:</Text>
-                        <Text style={styles.timingValue}>{treatment.applicationTiming}</Text>
+                      <Text style={styles.treatmentDetails}>{tr.details}</Text>
+                      <View style={styles.timingBadge}>
+                        <CheckCircle2 size={12} color={Colors.textMuted} />
+                        <Text style={styles.timingText}>{tr.applicationTiming}</Text>
                       </View>
                     </View>
                   ))}
                 </View>
 
-                <View style={styles.preventionSection}>
-                  <View style={styles.preventionHeader}>
-                    <Shield size={20} color={Colors.primary} />
-                    <Text style={styles.sectionTitle}>Prevention Tips</Text>
-                  </View>
-                  {diagnosis.preventionTips.map((tip, index) => (
-                    <View key={index} style={styles.preventionRow}>
-                      <View style={styles.preventionNumber}>
-                        <Text style={styles.preventionNumberText}>{index + 1}</Text>
-                      </View>
-                      <Text style={styles.preventionText}>{tip}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.scanAgainButton}
-                  onPress={clearImage}
-                  activeOpacity={0.7}
-                >
-                  <Camera size={18} color={Colors.primary} />
-                  <Text style={styles.scanAgainText}>Scan Another Crop</Text>
+                <TouchableOpacity style={styles.resetBtn} onPress={() => { setImageUri(null); setDiagnosis(null); }}>
+                  <Camera size={20} color={Colors.primary} />
+                  <Text style={styles.resetBtnText}>New Scan</Text>
                 </TouchableOpacity>
               </Animated.View>
             )}
@@ -424,475 +410,63 @@ Be specific with product names, dosages, and application methods that Indian far
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  uploadSection: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  uploadIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.primary + '12',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 20,
-  },
-  uploadTitle: {
-    fontSize: 24,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  uploadSubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 14,
-    width: '100%',
-    marginBottom: 32,
-  },
-  uploadButton: {
-    flex: 1,
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  galleryButton: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.primary + '30',
-  },
-  uploadButtonIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  galleryButtonIcon: {
-    backgroundColor: Colors.primary + '12',
-  },
-  uploadButtonText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#fff',
-  },
-  galleryButtonText: {
-    color: Colors.text,
-  },
-  tipsCard: {
-    width: '100%',
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  tipsTitle: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: 14,
-  },
-  tipRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    gap: 10,
-  },
-  tipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.primary,
-    marginTop: 7,
-  },
-  tipText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 20,
-  },
-  imagePreviewContainer: {
-    margin: 16,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: Colors.surface,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 280,
-    borderRadius: 20,
-  },
-  clearButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cropSelectSection: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  cropSelectLabel: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    color: Colors.textSecondary,
-    marginBottom: 10,
-  },
-  cropChipScroll: {
-    flexGrow: 0,
-  },
-  cropChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: 8,
-  },
-  cropChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  cropChipText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '500' as const,
-  },
-  cropChipTextActive: {
-    color: '#fff',
-  },
-  analyzeButton: {
-    marginHorizontal: 16,
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  analyzeButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#fff',
-  },
-  analyzingContainer: {
-    margin: 16,
-    padding: 32,
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  analyzingText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  analyzingSubtext: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: Colors.danger + '10',
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.danger + '20',
-  },
-  errorText: {
-    fontSize: 14,
-    color: Colors.danger,
-    flex: 1,
-  },
-  resultSection: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  diagnosisHeader: {
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  diagnosisNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  diagnosisName: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    flex: 1,
-  },
-  severityBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  severityText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-  },
-  confidenceText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    marginBottom: 10,
-  },
-  diagnosisDescription: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-  },
-  infoCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  infoCardTitle: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.textMuted,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  infoCardValue: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  symptomsCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    marginBottom: 14,
-  },
-  symptomRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-    gap: 10,
-  },
-  symptomDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.warning,
-    marginTop: 6,
-  },
-  symptomText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 21,
-  },
-  treatmentSection: {
-    marginBottom: 12,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 11,
-    gap: 6,
-  },
-  activeTab: {
-    backgroundColor: Colors.primary,
-  },
-  activeChemicalTab: {
-    backgroundColor: Colors.info,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  treatmentCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  treatmentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
-  },
-  treatmentIndex: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  organicIndex: {
-    backgroundColor: Colors.primary + '15',
-  },
-  chemicalIndex: {
-    backgroundColor: Colors.info + '15',
-  },
-  treatmentIndexText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: Colors.primary,
-  },
-  treatmentMethod: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    flex: 1,
-  },
-  treatmentDetails: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  timingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 10,
-    gap: 6,
-  },
-  timingLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.textMuted,
-  },
-  timingValue: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 18,
-  },
-  preventionSection: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  preventionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-  },
-  preventionRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    gap: 12,
-  },
-  preventionNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.primary + '12',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  preventionNumberText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.primary,
-  },
-  preventionText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 21,
-  },
-  scanAgainButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: Colors.primary + '30',
-    marginBottom: 20,
-  },
-  scanAgainText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.primary,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  scrollContent: { paddingBottom: 60 },
+  cropSelectorContainer: { padding: 16, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  selectorLabel: { fontSize: 13, color: Colors.textMuted, marginBottom: 10, fontWeight: '700' },
+  cropPicker: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, gap: 10 },
+  cropPickerText: { flex: 1, fontSize: 15, color: Colors.text, fontWeight: '600' },
+  cropList: { marginTop: 8, backgroundColor: Colors.background, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, elevation: 3 },
+  cropItem: { padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  selectedCropItem: { backgroundColor: Colors.primary + '10' },
+  cropItemText: { fontSize: 15, color: Colors.textSecondary },
+  uploadSection: { padding: 30, alignItems: 'center' },
+  scanHero: { alignItems: 'center', marginBottom: 40 },
+  scanIconBg: { width: 100, height: 100, borderRadius: 50, backgroundColor: Colors.primary + '12', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  scanTitle: { fontSize: 24, fontWeight: '800', color: Colors.text, marginBottom: 12 },
+  scanSubtitle: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24, paddingHorizontal: 10 },
+  buttonRow: { flexDirection: 'row', gap: 16, width: '100%' },
+  mainButton: { flex: 1, backgroundColor: Colors.primary, borderRadius: 18, paddingVertical: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10, elevation: 3 },
+  secondaryButton: { backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  imagePreviewContainer: { margin: 16, borderRadius: 28, overflow: 'hidden', elevation: 5 },
+  imagePreview: { width: '100%', height: 350 },
+  clearButton: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+  analyzeButton: { marginHorizontal: 16, backgroundColor: Colors.primary, borderRadius: 18, paddingVertical: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, elevation: 4 },
+  analyzeButtonText: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  analyzingCard: { margin: 16, padding: 50, backgroundColor: Colors.surface, borderRadius: 28, alignItems: 'center', gap: 20, elevation: 2 },
+  analyzingText: { fontSize: 18, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  resultSection: { padding: 16 },
+  diagnosisCard: { backgroundColor: Colors.surface, borderRadius: 28, padding: 24, marginBottom: 16, elevation: 3 },
+  diagnosisHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  diseaseName: { fontSize: 24, fontWeight: '800', color: Colors.text, flex: 1 },
+  localName: { fontSize: 16, color: Colors.primary, fontWeight: '700', marginTop: 4 },
+  severityBadge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
+  severityText: { fontSize: 12, fontWeight: '900' },
+  urgencyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF4F4', padding: 16, borderRadius: 16, marginBottom: 20, gap: 14, borderWidth: 1, borderColor: '#FFE3E3' },
+  urgencyTitle: { fontSize: 14, fontWeight: '800', color: Colors.danger, marginBottom: 2 },
+  urgencyText: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20 },
+  description: { fontSize: 16, color: Colors.textSecondary, lineHeight: 24, marginBottom: 24 },
+  shareOptionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 20 },
+  whatsappBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#25D366', paddingVertical: 12, borderRadius: 12, gap: 8 },
+  whatsappBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  shareSimpleBtn: { width: 48, height: 48, borderRadius: 12, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  sectionCard: { backgroundColor: Colors.surface, borderRadius: 28, padding: 24, marginBottom: 16, elevation: 2 },
+  sectionTitle: { fontSize: 20, fontWeight: '800', color: Colors.text, marginBottom: 20 },
+  tabBar: { flexDirection: 'row', backgroundColor: Colors.background, borderRadius: 16, padding: 5, marginBottom: 20 },
+  tab: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  activeTab: { backgroundColor: Colors.primary },
+  activeTabChem: { backgroundColor: Colors.info },
+  tabText: { fontSize: 15, fontWeight: '700', color: Colors.textMuted },
+  activeTabText: { color: '#fff' },
+  treatmentCard: { backgroundColor: Colors.background, borderRadius: 20, padding: 18, marginBottom: 14, borderLeftWidth: 5, borderLeftColor: Colors.primary },
+  treatmentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  treatmentMethod: { fontSize: 17, fontWeight: '800', color: Colors.text, flex: 1 },
+  addTaskBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.primary + '40' },
+  addTaskText: { fontSize: 12, fontWeight: '800', color: Colors.primary },
+  treatmentDetails: { fontSize: 15, color: Colors.textSecondary, lineHeight: 22, marginBottom: 12 },
+  timingBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  timingText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 20, backgroundColor: Colors.surface, borderRadius: 20, borderWidth: 2, borderColor: Colors.primary + '50', marginBottom: 20 },
+  resetBtnText: { fontSize: 17, fontWeight: '800', color: Colors.primary },
 });

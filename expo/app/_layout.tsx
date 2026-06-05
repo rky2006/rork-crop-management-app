@@ -21,13 +21,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const inLoginScreen = segments[0] === 'login';
     const inLanguageScreen = segments[0] === 'language';
 
+    // If not logged in, force language selection then login
     if (!isLoggedIn) {
       if (!language && !inLanguageScreen) {
         router.replace('/language');
       } else if (language && !inLoginScreen && !inLanguageScreen) {
         router.replace('/login');
       }
-    } else if (isLoggedIn && (inLoginScreen || inLanguageScreen)) {
+    }
+    // If logged in, only redirect away from login screen.
+    // Allow staying on language screen to change settings.
+    else if (isLoggedIn && inLoginScreen) {
       router.replace('/(tabs)');
     }
   }, [isLoggedIn, isLoading, language, segments, router]);
