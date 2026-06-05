@@ -76,7 +76,8 @@ export default function WeatherScreen() {
       } else {
         setLocationStatusText("Live location detected. State could not be matched automatically.");
       }
-    } catch {
+    } catch (error) {
+      console.warn("Live location detection failed", error);
       setLocationStatusText("Could not detect your live location. Try again in a few moments.");
     } finally {
       setIsDetectingLocation(false);
@@ -92,8 +93,10 @@ export default function WeatherScreen() {
   }
 
   let tipMessage: string;
-  if (!forecastData.length || !highestRainDay) {
-    tipMessage = "Forecast data is unavailable. Use your live location to view local weather.";
+  if (!highestRainDay) {
+    tipMessage = liveCoordinates
+      ? "Forecast data is unavailable for your current location. Please try again shortly."
+      : "Forecast data is unavailable. Use your live location to view local weather.";
   } else if (highestRainDay.rain >= 50) {
     tipMessage = `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`;
   } else {
