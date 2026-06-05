@@ -41,8 +41,8 @@ export default function WeatherScreen() {
     queryKey: [
       "weather-forecast-live",
       selectedState?.region ?? null,
-      liveCoordinates?.latitude.toFixed(3) ?? null,
-      liveCoordinates?.longitude.toFixed(3) ?? null,
+      liveCoordinates?.latitude.toFixed(2) ?? null,
+      liveCoordinates?.longitude.toFixed(2) ?? null,
     ],
     queryFn: () => fetchRealtimeWeatherForecast(selectedState?.region ?? null, liveCoordinates),
     staleTime: 5 * 60 * 1000,
@@ -91,12 +91,13 @@ export default function WeatherScreen() {
     }
   }
 
-  const tipMessage =
-    !highestRainDay
-      ? "Forecast data is unavailable. Use your live location to view local weather."
-      : highestRainDay.rain >= 50
+  let tipMessage = "Forecast data is unavailable. Use your live location to view local weather.";
+  if (highestRainDay) {
+    tipMessage =
+      highestRainDay.rain >= 50
         ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
         : "No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.";
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
