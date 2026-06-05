@@ -91,12 +91,13 @@ export default function WeatherScreen() {
     }
   }
 
-  let tipMessage = "Forecast data is unavailable. Use your live location to view local weather.";
-  if (highestRainDay) {
-    tipMessage =
-      highestRainDay.rain >= 50
-        ? `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`
-        : "No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.";
+  let tipMessage: string;
+  if (!forecastData.length || !highestRainDay) {
+    tipMessage = "Forecast data is unavailable. Use your live location to view local weather.";
+  } else if (highestRainDay.rain >= 50) {
+    tipMessage = `${highestRainDay.day} has high rain chances (${highestRainDay.rain}%). Postpone irrigation and keep harvested produce covered.`;
+  } else {
+    tipMessage = "No heavy rain expected soon. Continue regular irrigation and monitor soil moisture in the evening.";
   }
 
   return (
